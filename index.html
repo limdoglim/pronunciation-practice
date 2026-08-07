@@ -81,21 +81,29 @@
   .word-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 16px; }
   .word-card {
     background: var(--card); border: 1px solid var(--border); border-radius: 16px;
-    padding: 18px 10px; text-align: center; cursor: pointer;
+    padding: 16px 10px; text-align: center;
     display: flex; flex-direction: column; align-items: center; gap: 8px;
-    user-select: none; transition: border-color .15s, transform .1s;
-    min-height: 130px; justify-content: center;
+    user-select: none; min-height: 130px; justify-content: center;
   }
-  .word-card:active { transform: scale(0.97); }
-  .word-card.stage-1 { border-color: var(--accent); }
   .word-card .visual { font-size: 2.1rem; line-height: 1; }
   .word-card img.visual { width: 52px; height: 52px; object-fit: cover; border-radius: 10px; font-size: 0; }
   .word-card .word-text { font-weight: 600; font-size: 1.02rem; }
-  .word-card .hint { font-size: 0.72rem; color: var(--sub); min-height: 1em; }
+  .card-actions { display: flex; flex-direction: column; gap: 5px; width: 100%; margin-top: 4px; }
+  .card-btn {
+    width: 100%; padding: 7px 6px; font-size: 0.76rem; border-radius: 9px;
+    background: var(--bg); border: 1px solid var(--border); color: var(--text); cursor: pointer;
+  }
+  .card-btn:active { transform: scale(0.96); }
+  body.tts-busy .card-btn,
+  body.tts-busy .quiz-choice-btn,
+  body.tts-busy #btn-quiz-replay {
+    pointer-events: none;
+    opacity: 0.5;
+  }
 
   /* Editor table */
   .editor-row {
-    display: grid; grid-template-columns: 32px 1fr 1fr 60px 60px 28px;
+    display: grid; grid-template-columns: 28px 1fr 1fr 1fr 50px 50px 26px;
     gap: 6px; align-items: center; margin-bottom: 6px;
   }
   .editor-row input[type=text] {
@@ -110,7 +118,7 @@
     font-family: inherit; font-size: 0.9rem; resize: vertical;
   }
   label { font-size: 0.85rem; color: var(--sub); display: block; margin: 14px 0 6px; }
-  input[type=text].wide, input[type=password].wide {
+  input[type=text].wide, input[type=password].wide, select.wide {
     width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--border);
     background: var(--card); color: var(--text); font-size: 0.9rem;
   }
@@ -217,8 +225,8 @@
     </div>
 
     <div class="tabpanel" id="tab-json" hidden>
-      <label>JSON 붙여넣기 — 형식: [{"word":"...", "sentence":"...", "emoji":"..."}]</label>
-      <textarea id="json-input" placeholder='[{"word":"beautiful","sentence":"The sunset looked beautiful.","emoji":"🌅"}]'></textarea>
+      <label>JSON 붙여넣기 — 형식: [{"word":"...", "sentence":"...(짧은 예문)", "sentenceLong":"...(긴 예문)", "emoji":"..."}]</label>
+      <textarea id="json-input" placeholder='[{"word":"beautiful","sentence":"It looks beautiful.","sentenceLong":"The sunset over the hills looked absolutely beautiful this evening.","emoji":"🌅"}]'></textarea>
       <div class="modal-footer" style="justify-content:flex-start; margin-top:10px;">
         <button id="btn-json-load">표로 불러오기</button>
       </div>
@@ -242,7 +250,7 @@
       <button id="btn-export-set">⬇ JSON 내보내기</button>
       <button class="danger" id="btn-delete-set">삭제</button>
     </div>
-    <p class="status-line">카드를 탭하면 단어 발음, 한 번 더 탭하면 예문을 읽어줍니다.</p>
+    <p class="status-line">각 카드의 버튼으로 단어 / 짧은 예문 / 긴 예문 발음을 들을 수 있습니다.</p>
     <div class="word-grid" id="word-grid"></div>
   </section>
 
@@ -298,11 +306,40 @@
 
     <hr>
 
-    <label>Ollama API 키</label>
+    <label>발음 재생 방식</label>
+    <div class="tabs" id="voice-mode-select">
+      <button type="button" class="tab-btn" data-mode="browser">브라우저 음성</button>
+      <button type="button" class="tab-btn" data-mode="ai">✨ AI 음성 (Gemini)</button>
+    </div>
+    <p class="status-line">AI 음성은 더 자연스럽지만 호출마다 약간 지연이 있습니다.</p>
+    <div class="field-row" style="margin-top:8px;">
+      <div>
+        <label style="margin:0 0 4px;">AI 억양</label>
+        <select id="setting-ai-accent" class="wide">
+          <option value="en-GB">영국식</option>
+          <option value="en-US">미국식</option>
+        </select>
+      </div>
+      <div>
+        <label style="margin:0 0 4px;">AI 보이스</label>
+        <select id="setting-ai-voice-name" class="wide">
+          <option value="Kore">Kore</option>
+          <option value="Puck">Puck</option>
+          <option value="Charon">Charon</option>
+          <option value="Fenrir">Fenrir</option>
+          <option value="Aoede">Aoede</option>
+          <option value="Leda">Leda</option>
+        </select>
+      </div>
+    </div>
+
+    <hr>
+
+    <label>Ollama API 키 (로컬 Ollama 사용 시 비워둬도 됨)</label>
     <input type="password" class="wide" id="setting-apikey" placeholder="ollama.com/settings/keys 에서 발급">
     <label>모델</label>
-    <input type="text" class="wide" id="setting-model" placeholder="gpt-oss:20b">
-    <p class="status-line">키는 이 브라우저의 localStorage에만 저장됩니다. 외부로 전송되지 않습니다(직접 ollama.com 호출 시 제외).</p>
+    <input type="text" class="wide" id="setting-model" placeholder="gemma4:31b-cloud">
+    <p class="status-line">키는 이 브라우저의 localStorage에만 저장됩니다. 외부로 전송되지 않습니다.</p>
     <div class="modal-footer">
       <button class="danger" id="btn-clear-key">키 삭제</button>
       <button id="btn-close-settings">닫기</button>
@@ -448,7 +485,7 @@
 
   $("#btn-manual-load").addEventListener("click", () => {
     const words = wordsFromTextarea($("#manual-words").value);
-    words.forEach(w => state.rows.push({ id: uid(), word: w, sentence: "", emoji: "🔤", image: "" }));
+    words.forEach(w => state.rows.push({ id: uid(), word: w, sentence: "", sentenceLong: "", emoji: "🔤", image: "" }));
     renderEditorRows();
   });
 
@@ -465,6 +502,7 @@
           id: uid(),
           word: String(item.word),
           sentence: String(item.sentence || ""),
+          sentenceLong: String(item.sentenceLong || ""),
           emoji: String(item.emoji || "🔤"),
           image: ""
         });
@@ -488,11 +526,6 @@
       return;
     }
     const settings = loadSettings();
-    if (!settings.apiKey) {
-      statusEl.textContent = "설정(⚙️)에서 Ollama API 키를 먼저 입력하세요.";
-      statusEl.className = "status-line error";
-      return;
-    }
     const btn = $("#btn-ai-generate");
     btn.disabled = true;
     statusEl.textContent = "생성 중...";
@@ -507,28 +540,28 @@
               properties: {
                 word: { type: "string" },
                 sentence: { type: "string" },
+                sentenceLong: { type: "string" },
                 emoji: { type: "string" }
               },
-              required: ["word", "sentence", "emoji"]
+              required: ["word", "sentence", "sentenceLong", "emoji"]
             }
           }
         },
         required: ["items"]
       };
-      const res = await fetch("https://ollama.com/api/chat", {
+      const headers = { "Content-Type": "application/json" };
+      if (settings.apiKey) headers["Authorization"] = "Bearer " + settings.apiKey;
+      const res = await fetch("/api/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + settings.apiKey
-        },
+        headers,
         body: JSON.stringify({
-          model: settings.model || "gpt-oss:20b",
+          model: settings.model || "gemma4:31b-cloud",
           stream: false,
           format: schema,
           messages: [
             {
               role: "system",
-              content: "You are a British English teacher. For each given word, write ONE short, natural example sentence (British English spelling/usage) that clearly demonstrates the word's meaning, and pick ONE emoji that best represents the word. Respond only with the requested JSON."
+              content: "You are a British English teacher. For each given word, write TWO natural example sentences (British English spelling/usage) that clearly demonstrate the word's meaning: 'sentence' must be a very short, simple sentence (3-6 words), and 'sentenceLong' must be a longer, more descriptive sentence (12-18 words) using the same word. Also pick ONE emoji that best represents the word. Respond only with the requested JSON."
             },
             {
               role: "user",
@@ -539,13 +572,27 @@
       });
       if (!res.ok) throw new Error("HTTP " + res.status + " " + (await res.text()).slice(0, 200));
       const data = await res.json();
-      const parsed = JSON.parse(data.message.content);
-      const items = parsed.items || [];
+      const raw = data.message.content.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
+      const parsed = JSON.parse(raw);
+      let items = [];
+      if (Array.isArray(parsed.items)) {
+        items = parsed.items;
+      } else if (Array.isArray(parsed)) {
+        items = parsed;
+      } else if (parsed && typeof parsed === "object") {
+        items = Object.entries(parsed).map(([word, v]) => ({
+          word,
+          sentence: (v && v.sentence) || "",
+          sentenceLong: (v && v.sentenceLong) || "",
+          emoji: (v && v.emoji) || ""
+        }));
+      }
       items.forEach(item => {
         state.rows.push({
           id: uid(),
           word: String(item.word || ""),
           sentence: String(item.sentence || ""),
+          sentenceLong: String(item.sentenceLong || ""),
           emoji: String(item.emoji || "🔤"),
           image: ""
         });
@@ -570,7 +617,8 @@
       el.innerHTML = `
         <div class="idx">${i + 1}</div>
         <input type="text" class="f-word" placeholder="단어" value="${escapeHtml(row.word)}">
-        <input type="text" class="f-sentence" placeholder="예문" value="${escapeHtml(row.sentence)}">
+        <input type="text" class="f-sentence" placeholder="짧은 예문" value="${escapeHtml(row.sentence)}">
+        <input type="text" class="f-sentence-long" placeholder="긴 예문" value="${escapeHtml(row.sentenceLong || "")}">
         <input type="text" class="f-emoji" placeholder="🔤" value="${escapeHtml(row.emoji)}">
         <label style="cursor:pointer; text-align:center; margin:0;">
           ${row.image ? `<img class="thumb" src="${row.image}">` : "📷"}
@@ -580,6 +628,7 @@
       `;
       el.querySelector(".f-word").addEventListener("input", e => row.word = e.target.value);
       el.querySelector(".f-sentence").addEventListener("input", e => row.sentence = e.target.value);
+      el.querySelector(".f-sentence-long").addEventListener("input", e => row.sentenceLong = e.target.value);
       el.querySelector(".f-emoji").addEventListener("input", e => row.emoji = e.target.value);
       el.querySelector(".f-remove").addEventListener("click", () => {
         state.rows.splice(i, 1);
@@ -600,7 +649,7 @@
   }
 
   $("#btn-add-row").addEventListener("click", () => {
-    state.rows.push({ id: uid(), word: "", sentence: "", emoji: "🔤", image: "" });
+    state.rows.push({ id: uid(), word: "", sentence: "", sentenceLong: "", emoji: "🔤", image: "" });
     renderEditorRows();
   });
 
@@ -628,11 +677,8 @@
   });
 
   // ---------- Practice ----------
-  let cardStage = {}; // wordId -> 0 | 1
-
   function openPractice(setId) {
     state.activeSetId = setId;
-    cardStage = {};
     renderPractice();
     showView("practice");
   }
@@ -669,6 +715,7 @@
   let voiceModalFilter = "all";
   let voiceModalSelection = null; // {uri, name, lang} chosen while modal open, not yet saved
   let voiceShowNovelty = false;
+  let voiceModeSelection = "browser"; // "browser" | "ai", chosen while modal open, not yet saved
 
   function matchesAccent(voiceLang, accent) {
     if (accent === "all") return true;
@@ -679,9 +726,16 @@
   function renderVoiceList() {
     const container = $("#voice-list");
     if (!container) return;
+    const seen = new Set();
     const all = speechSynthesis.getVoices()
       .filter(v => v.lang && v.lang.toLowerCase().startsWith("en"))
-      .filter(v => voiceShowNovelty || !isNoveltyVoice(v.name));
+      .filter(v => voiceShowNovelty || !isNoveltyVoice(v.name))
+      .filter(v => {
+        const key = v.name + "|" + v.lang;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     const voices = all.filter(v => matchesAccent(v.lang, voiceModalFilter));
     container.innerHTML = "";
     if (voices.length === 0) {
@@ -722,6 +776,13 @@
     });
   });
 
+  $$("#voice-mode-select .tab-btn").forEach(b => {
+    b.addEventListener("click", () => {
+      voiceModeSelection = b.dataset.mode;
+      $$("#voice-mode-select .tab-btn").forEach(x => x.classList.toggle("active", x === b));
+    });
+  });
+
   $("#setting-rate").addEventListener("input", () => {
     $("#rate-value").textContent = parseFloat($("#setting-rate").value).toFixed(2);
   });
@@ -751,15 +812,62 @@
       || null;
   }
 
-  function speak(text) {
+  let aiAudioEl = null;
+  let ttsBusy = false;
+  let ttsBusyTimeout = null;
+
+  function setTtsBusy(v) {
+    ttsBusy = v;
+    document.body.classList.toggle("tts-busy", v);
+    clearTimeout(ttsBusyTimeout);
+    if (v) ttsBusyTimeout = setTimeout(() => setTtsBusy(false), 15000);
+  }
+
+  function speakBrowser(text, settings) {
     speechSynthesis.cancel();
-    const settings = loadSettings();
     const utter = new SpeechSynthesisUtterance(text);
     const voice = pickVoice(settings);
     if (voice) { utter.voice = voice; utter.lang = voice.lang; }
     else { utter.lang = "en-GB"; }
     utter.rate = settings.rate || 0.92;
     speechSynthesis.speak(utter);
+  }
+
+  function speak(text) {
+    const settings = loadSettings();
+    if (settings.voiceMode !== "ai") {
+      speakBrowser(text, settings);
+      return;
+    }
+    if (ttsBusy) return;
+    speechSynthesis.cancel();
+    if (aiAudioEl) { aiAudioEl.pause(); aiAudioEl = null; }
+    setTtsBusy(true);
+    fetch("/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        voice: settings.aiVoiceName || "Kore",
+        accent: settings.aiAccent || "en-GB"
+      })
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("TTS HTTP " + res.status);
+        return res.blob();
+      })
+      .then(blob => {
+        aiAudioEl = new Audio(URL.createObjectURL(blob));
+        aiAudioEl.playbackRate = settings.rate || 0.92;
+        aiAudioEl.addEventListener("ended", () => setTtsBusy(false));
+        aiAudioEl.addEventListener("error", () => setTtsBusy(false));
+        aiAudioEl.play();
+      })
+      .catch(err => {
+        console.warn("AI 음성 실패, 브라우저 음성으로 대체:", err);
+        setTtsBusy(false);
+        speakBrowser(text, settings);
+      });
   }
 
   function renderPractice() {
@@ -769,27 +877,20 @@
     const grid = $("#word-grid");
     grid.innerHTML = "";
     s.words.forEach(w => {
-      cardStage[w.id] = cardStage[w.id] || 0;
       const card = document.createElement("div");
       card.className = "word-card";
       card.innerHTML = `
         ${w.image ? `<img class="visual" src="${w.image}">` : `<div class="visual">${escapeHtml(w.emoji || "🔤")}</div>`}
         <div class="word-text">${escapeHtml(w.word)}</div>
-        <div class="hint">탭: 발음</div>
+        <div class="card-actions">
+          <button class="card-btn" data-kind="word">🔊 단어</button>
+          <button class="card-btn" data-kind="short">📝 짧은 예문</button>
+          <button class="card-btn" data-kind="long">📖 긴 예문</button>
+        </div>
       `;
-      card.addEventListener("click", () => {
-        if (cardStage[w.id] === 0) {
-          speak(w.word);
-          cardStage[w.id] = 1;
-          card.classList.add("stage-1");
-          card.querySelector(".hint").textContent = "탭: 예문";
-        } else {
-          speak(w.sentence || w.word);
-          cardStage[w.id] = 0;
-          card.classList.remove("stage-1");
-          card.querySelector(".hint").textContent = "탭: 발음";
-        }
-      });
+      card.querySelector('[data-kind="word"]').addEventListener("click", () => speak(w.word));
+      card.querySelector('[data-kind="short"]').addEventListener("click", () => speak(w.sentence || w.word));
+      card.querySelector('[data-kind="long"]').addEventListener("click", () => speak(w.sentenceLong || w.sentence || w.word));
       grid.appendChild(card);
     });
   }
@@ -809,7 +910,7 @@
   $("#btn-export-set").addEventListener("click", () => {
     const s = getSetById(state.activeSetId);
     if (!s) return;
-    const payload = s.words.map(w => ({ word: w.word, sentence: w.sentence, emoji: w.emoji }));
+    const payload = s.words.map(w => ({ word: w.word, sentence: w.sentence, sentenceLong: w.sentenceLong || "", emoji: w.emoji }));
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -949,7 +1050,11 @@
   $("#btn-settings").addEventListener("click", () => {
     const s = loadSettings();
     $("#setting-apikey").value = s.apiKey || "";
-    $("#setting-model").value = s.model || "gpt-oss:20b";
+    $("#setting-model").value = s.model || "gemma4:31b-cloud";
+    voiceModeSelection = s.voiceMode || "browser";
+    $$("#voice-mode-select .tab-btn").forEach(x => x.classList.toggle("active", x.dataset.mode === voiceModeSelection));
+    $("#setting-ai-accent").value = s.aiAccent || "en-GB";
+    $("#setting-ai-voice-name").value = s.aiVoiceName || "Kore";
     $("#setting-rate").value = s.rate || 0.92;
     $("#rate-value").textContent = (s.rate || 0.92).toFixed(2);
     voiceModalFilter = "all";
@@ -964,7 +1069,10 @@
   $("#btn-save-settings").addEventListener("click", () => {
     saveSettings({
       apiKey: $("#setting-apikey").value.trim(),
-      model: $("#setting-model").value.trim() || "gpt-oss:20b",
+      model: $("#setting-model").value.trim() || "gemma4:31b-cloud",
+      voiceMode: voiceModeSelection,
+      aiAccent: $("#setting-ai-accent").value,
+      aiVoiceName: $("#setting-ai-voice-name").value,
       voice: voiceModalSelection,
       rate: parseFloat($("#setting-rate").value) || 0.92
     });
