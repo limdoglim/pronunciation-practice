@@ -255,6 +255,7 @@
     <label>검토 / 편집</label>
     <div id="editor-rows"></div>
     <button id="btn-add-row">+ 행 추가</button>
+    <button id="btn-pull-words" title="아래 표의 단어를 위 단어 목록 입력창으로 올립니다">⬆ 단어 목록으로 올리기</button>
 
     <div class="modal-footer">
       <button id="btn-cancel-create">취소</button>
@@ -496,9 +497,36 @@
     return text.split("\n").map(w => w.trim()).filter(Boolean);
   }
 
+  // Adds a word, or merges onto the existing row with the same word
+  // (case-insensitive) instead of creating a duplicate. Only non-empty
+  // incoming fields overwrite existing ones.
+  function upsertRow(data) {
+    const word = (data.word || "").trim();
+    if (!word) return;
+    const key = word.toLowerCase();
+    const existing = state.rows.find(r => r.word.trim().toLowerCase() === key);
+    if (existing) {
+      if (data.sentence) existing.sentence = data.sentence;
+      if (data.sentenceLong) existing.sentenceLong = data.sentenceLong;
+      if (data.meaning) existing.meaning = data.meaning;
+      if (data.emoji) existing.emoji = data.emoji;
+      if (data.image) existing.image = data.image;
+    } else {
+      state.rows.push({
+        id: uid(),
+        word,
+        sentence: data.sentence || "",
+        sentenceLong: data.sentenceLong || "",
+        meaning: data.meaning || "",
+        emoji: data.emoji || "🔤",
+        image: data.image || ""
+      });
+    }
+  }
+
   $("#btn-manual-load").addEventListener("click", () => {
     const words = wordsFromTextarea($("#manual-words").value);
-    words.forEach(w => state.rows.push({ id: uid(), word: w, sentence: "", sentenceLong: "", meaning: "", emoji: "🔤", image: "" }));
+    words.forEach(w => upsertRow({ word: w }));
     renderEditorRows();
   });
 
@@ -511,14 +539,12 @@
       if (!arr) throw new Error("배열 형식이 아닙니다");
       arr.forEach(item => {
         if (!item.word) return;
-        state.rows.push({
-          id: uid(),
+        upsertRow({
           word: String(item.word),
           sentence: String(item.sentence || ""),
           sentenceLong: String(item.sentenceLong || ""),
           meaning: String(item.meaning || ""),
-          emoji: String(item.emoji || "🔤"),
-          image: ""
+          emoji: String(item.emoji || "")
         });
       });
       renderEditorRows();
@@ -606,14 +632,12 @@
         }));
       }
       items.forEach(item => {
-        state.rows.push({
-          id: uid(),
+        upsertRow({
           word: String(item.word || ""),
           sentence: String(item.sentence || ""),
           sentenceLong: String(item.sentenceLong || ""),
           meaning: String(item.meaning || ""),
-          emoji: String(item.emoji || "🔤"),
-          image: ""
+          emoji: String(item.emoji || "")
         });
       });
       renderEditorRows();
@@ -672,6 +696,15 @@
   $("#btn-add-row").addEventListener("click", () => {
     state.rows.push({ id: uid(), word: "", sentence: "", sentenceLong: "", meaning: "", emoji: "🔤", image: "" });
     renderEditorRows();
+  });
+
+  $("#btn-pull-words").addEventListener("click", () => {
+    const words = [...new Set(state.rows.map(r => r.word.trim()).filter(Boolean))];
+    const text = words.join("\n");
+    $("#manual-words").value = text;
+    $("#ai-words").value = text;
+    const activeTab = $$(".tab-btn").find(b => b.classList.contains("active"))?.dataset.tab;
+    if (activeTab === "json") switchTab("ai");
   });
 
   $("#btn-save-set").addEventListener("click", () => {
@@ -1091,14 +1124,27 @@
   });
 
   // ---------- Init ----------
-  const DEFAULT_SET_WORDS = ["ask", "an", "over", "just", "from", "any", "how", "know", "put", "take", "every", "old"];
+  const DEFAULT_SET_WORDS = [
+    { word: "ask", sentence: "I ask a question.", sentenceLong: "I ask my teacher a question in class.", meaning: "물어보다", emoji: "❓" },
+    { word: "an", sentence: "I eat an apple.", sentenceLong: "I eat an apple every day after school.", meaning: "하나의 (모음 앞)", emoji: "🍎" },
+    { word: "over", sentence: "It is over there.", sentenceLong: "The cat jumps over the little fence in the yard.", meaning: "위로, 건너서", emoji: "🐱" },
+    { word: "just", sentence: "I just woke up.", sentenceLong: "I just finished my homework before dinner tonight.", meaning: "방금, 그냥", emoji: "⏰" },
+    { word: "from", sentence: "I am from Korea.", sentenceLong: "My friend is from a small town near the sea.", meaning: "~로부터", emoji: "🌍" },
+    { word: "any", sentence: "I don't have any.", sentenceLong: "I don't have any candy left in my bag.", meaning: "어떤, 아무", emoji: "🍬" },
+    { word: "how", sentence: "How are you today?", sentenceLong: "How do you make a sandwich for lunch?", meaning: "어떻게", emoji: "🥪" },
+    { word: "know", sentence: "I know the answer.", sentenceLong: "I know how to ride my new bike.", meaning: "알다", emoji: "🚲" },
+    { word: "put", sentence: "Put the toy away.", sentenceLong: "Please put your shoes by the front door.", meaning: "놓다, 두다", emoji: "👟" },
+    { word: "take", sentence: "Take my hand, please.", sentenceLong: "I take my dog for a walk every morning.", meaning: "가지다, 데려가다", emoji: "🐕" },
+    { word: "every", sentence: "I brush every morning.", sentenceLong: "I brush my teeth every morning and night.", meaning: "모든, 매~", emoji: "🦷" },
+    { word: "old", sentence: "My dog is old.", sentenceLong: "My grandpa is very old and very kind.", meaning: "나이든, 오래된", emoji: "👴" }
+  ];
   function seedDefaultSetIfEmpty() {
     if (loadSets().length > 0) return;
     const now = Date.now();
     saveSets([{
       id: uid(),
       name: "테스트 세트",
-      words: DEFAULT_SET_WORDS.map(w => ({ id: uid(), word: w, sentence: "", sentenceLong: "", meaning: "", emoji: "🔤", image: "" })),
+      words: DEFAULT_SET_WORDS.map(w => ({ id: uid(), word: w.word, sentence: w.sentence, sentenceLong: w.sentenceLong, meaning: w.meaning, emoji: w.emoji, image: "" })),
       createdAt: now,
       updatedAt: now
     }]);

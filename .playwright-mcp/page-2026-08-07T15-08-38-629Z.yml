@@ -1,0 +1,136 @@
+- generic [active] [ref=f1e1]:
+  - banner [ref=f1e2]:
+    - heading "🇺🇸 세트 만들기" [level=1] [ref=f1e123]
+    - generic [ref=f1e4]:
+      - button "←" [ref=f1e18] [cursor=pointer]
+      - button "⚙️" [ref=f1e5] [cursor=pointer]
+  - main [ref=f1e6]:
+    - generic [ref=f1e124]:
+      - generic [ref=f1e125]: 세트 이름
+      - textbox "세트 이름" [ref=f1e126]:
+        - /placeholder: "예: Unit 3 단어"
+        - text: 테스트 세트
+      - generic [ref=f1e127]:
+        - button "직접 입력" [ref=f1e128] [cursor=pointer]
+        - button "AI로 생성" [ref=f1e129] [cursor=pointer]
+        - button "JSON 붙여넣기" [ref=f1e130] [cursor=pointer]
+      - generic [ref=f1e131]:
+        - generic [ref=f1e132]: 단어 목록 (한 줄에 한 단어)
+        - textbox "beautiful schedule privacy" [ref=f1e133]:
+          - /placeholder: "beautiful\nschedule\nprivacy"
+        - button "표로 불러오기" [ref=f1e135] [cursor=pointer]
+      - generic [ref=f1e136]: 검토 / 편집
+      - generic [ref=f1e137]:
+        - generic [ref=f1e138]:
+          - generic [ref=f1e139]: "1"
+          - textbox "단어" [ref=f1e140]: ask
+          - textbox "짧은 예문" [ref=f1e141]: I ask a question.
+          - textbox "긴 예문" [ref=f1e142]: I ask my teacher a question in class.
+          - textbox "뜻" [ref=f1e143]: 물어보다
+          - textbox "🔤" [ref=f1e144]: ❓
+          - generic [ref=f1e145] [cursor=pointer]: 📷
+          - button "✕" [ref=f1e146] [cursor=pointer]
+        - generic [ref=f1e147]:
+          - generic [ref=f1e148]: "2"
+          - textbox "단어" [ref=f1e149]: an
+          - textbox "짧은 예문" [ref=f1e150]: I eat an apple.
+          - textbox "긴 예문" [ref=f1e151]: I eat an apple every day after school.
+          - textbox "뜻" [ref=f1e152]: 하나의 (모음 앞)
+          - textbox "🔤" [ref=f1e153]: 🍎
+          - generic [ref=f1e154] [cursor=pointer]: 📷
+          - button "✕" [ref=f1e155] [cursor=pointer]
+        - generic [ref=f1e156]:
+          - generic [ref=f1e157]: "3"
+          - textbox "단어" [ref=f1e158]: over
+          - textbox "짧은 예문" [ref=f1e159]: It is over there.
+          - textbox "긴 예문" [ref=f1e160]: The cat jumps over the little fence in the yard.
+          - textbox "뜻" [ref=f1e161]: 위로, 건너서
+          - textbox "🔤" [ref=f1e162]: 🐱
+          - generic [ref=f1e163] [cursor=pointer]: 📷
+          - button "✕" [ref=f1e164] [cursor=pointer]
+        - generic [ref=f1e165]:
+          - generic [ref=f1e166]: "4"
+          - textbox "단어" [ref=f1e167]: just
+          - textbox "짧은 예문" [ref=f1e168]: I just woke up.
+          - textbox "긴 예문" [ref=f1e169]: I just finished my homework before dinner tonight.
+          - textbox "뜻" [ref=f1e170]: 방금, 그냥
+          - textbox "🔤" [ref=f1e171]: ⏰
+          - generic [ref=f1e172] [cursor=pointer]: 📷
+          - button "✕" [ref=f1e173] [cursor=pointer]
+        - generic [ref=f1e174]:
+          - generic [ref=f1e175]: "5"
+          - textbox "단어" [ref=f1e176]: from
+          - textbox "짧은 예문" [ref=f1e177]: I am from Korea.
+          - textbox "긴 예문" [ref=f1e178]: My friend is from a small town near the sea.
+          - textbox "뜻" [ref=f1e179]: ~로부터
+          - textbox "🔤" [ref=f1e180]: 🌍
+          - generic [ref=f1e181] [cursor=pointer]: 📷
+          - button "✕" [ref=f1e182] [cursor=pointer]
+        - generic [ref=f1e183]:
+          - generic [ref=f1e184]: "6"
+          - textbox "단어" [ref=f1e185]: any
+          - textbox "짧은 예문" [ref=f1e186]: I don't have any.
+          - textbox "긴 예문" [ref=f1e187]: I don't have any candy left in my bag.
+          - textbox "뜻" [ref=f1e188]: 어떤, 아무
+          - textbox "🔤" [ref=f1e189]: 🍬
+          - generic [ref=f1e190] [cursor=pointer]: 📷
+          - button "✕" [ref=f1e191] [cursor=pointer]
+        - generic [ref=f1e192]:
+          - generic [ref=f1e193]: "7"
+          - textbox "단어" [ref=f1e194]: how
+          - textbox "짧은 예문" [ref=f1e195]: How are you today?
+          - textbox "긴 예문" [ref=f1e196]: How do you make a sandwich for lunch?
+          - textbox "뜻" [ref=f1e197]: 어떻게
+          - textbox "🔤" [ref=f1e198]: 🥪
+          - generic [ref=f1e199] [cursor=pointer]: 📷
+          - button "✕" [ref=f1e200] [cursor=pointer]
+        - generic [ref=f1e201]:
+          - generic [ref=f1e202]: "8"
+          - textbox "단어" [ref=f1e203]: know
+          - textbox "짧은 예문" [ref=f1e204]: I know the answer.
+          - textbox "긴 예문" [ref=f1e205]: I know how to ride my new bike.
+          - textbox "뜻" [ref=f1e206]: 알다
+          - textbox "🔤" [ref=f1e207]: 🚲
+          - generic [ref=f1e208] [cursor=pointer]: 📷
+          - button "✕" [ref=f1e209] [cursor=pointer]
+        - generic [ref=f1e210]:
+          - generic [ref=f1e211]: "9"
+          - textbox "단어" [ref=f1e212]: put
+          - textbox "짧은 예문" [ref=f1e213]: Put the toy away.
+          - textbox "긴 예문" [ref=f1e214]: Please put your shoes by the front door.
+          - textbox "뜻" [ref=f1e215]: 놓다, 두다
+          - textbox "🔤" [ref=f1e216]: 👟
+          - generic [ref=f1e217] [cursor=pointer]: 📷
+          - button "✕" [ref=f1e218] [cursor=pointer]
+        - generic [ref=f1e219]:
+          - generic [ref=f1e220]: "10"
+          - textbox "단어" [ref=f1e221]: take
+          - textbox "짧은 예문" [ref=f1e222]: Take my hand, please.
+          - textbox "긴 예문" [ref=f1e223]: I take my dog for a walk every morning.
+          - textbox "뜻" [ref=f1e224]: 가지다, 데려가다
+          - textbox "🔤" [ref=f1e225]: 🐕
+          - generic [ref=f1e226] [cursor=pointer]: 📷
+          - button "✕" [ref=f1e227] [cursor=pointer]
+        - generic [ref=f1e228]:
+          - generic [ref=f1e229]: "11"
+          - textbox "단어" [ref=f1e230]: every
+          - textbox "짧은 예문" [ref=f1e231]: I brush every morning.
+          - textbox "긴 예문" [ref=f1e232]: I brush my teeth every morning and night.
+          - textbox "뜻" [ref=f1e233]: 모든, 매~
+          - textbox "🔤" [ref=f1e234]: 🦷
+          - generic [ref=f1e235] [cursor=pointer]: 📷
+          - button "✕" [ref=f1e236] [cursor=pointer]
+        - generic [ref=f1e237]:
+          - generic [ref=f1e238]: "12"
+          - textbox "단어" [ref=f1e239]: old
+          - textbox "짧은 예문" [ref=f1e240]: My dog is old.
+          - textbox "긴 예문" [ref=f1e241]: My grandpa is very old and very kind.
+          - textbox "뜻" [ref=f1e242]: 나이든, 오래된
+          - textbox "🔤" [ref=f1e243]: 👴
+          - generic [ref=f1e244] [cursor=pointer]: 📷
+          - button "✕" [ref=f1e245] [cursor=pointer]
+      - button "+ 행 추가" [ref=f1e246] [cursor=pointer]
+      - button "⬆ 단어 목록으로 올리기" [ref=f1e247] [cursor=pointer]
+      - generic [ref=f1e248]:
+        - button "취소" [ref=f1e249] [cursor=pointer]
+        - button "세트 저장" [ref=f1e250] [cursor=pointer]
