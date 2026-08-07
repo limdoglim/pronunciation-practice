@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>영국식 발음 연습</title>
+<title>영어 발음 연습</title>
 <style>
   :root {
     --bg: #f5f3ef;
@@ -150,15 +150,6 @@
   .field-row > * { flex: 1; }
   .modal hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
 
-  .voice-list { max-height: 220px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; }
-  .voice-row {
-    display: flex; align-items: center; gap: 8px; padding: 9px 10px;
-    border-bottom: 1px solid var(--border); font-size: 0.85rem;
-  }
-  .voice-row:last-child { border-bottom: none; }
-  .voice-row .voice-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .voice-row .voice-badge { color: var(--sub); font-size: 0.75rem; white-space: nowrap; }
-  .voice-empty { padding: 14px 10px; color: var(--sub); font-size: 0.85rem; }
   .rate-row { display: flex; align-items: center; gap: 10px; }
   .rate-row input[type=range] { flex: 1; }
 
@@ -181,7 +172,7 @@
 <body>
 
 <header>
-  <h1 id="header-title">🇬🇧 발음 연습</h1>
+  <h1 id="header-title">🇺🇸 발음 연습</h1>
   <div class="actions">
     <button class="icon" id="btn-back" hidden title="뒤로">←</button>
     <button class="icon" id="btn-settings" title="설정">⚙️</button>
@@ -285,20 +276,6 @@
   <div class="modal">
     <h2>설정</h2>
 
-    <label>발음 억양</label>
-    <div class="tabs" id="accent-filter">
-      <button class="tab-btn active" data-accent="all">전체</button>
-      <button class="tab-btn" data-accent="en-GB">영국식</button>
-      <button class="tab-btn" data-accent="en-US">미국식</button>
-    </div>
-
-    <label>음성 선택 <span style="font-weight:normal;">(성별 표시는 음성 이름 기반 추정치)</span></label>
-    <div class="voice-list" id="voice-list"></div>
-    <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:0.8rem;">
-      <input type="checkbox" id="setting-show-novelty" style="margin:0;">
-      효과음/장난 음성도 표시 (Bells, Zarvox 등 — 발음 연습엔 비추천)
-    </label>
-
     <label>말하기 속도: <span id="rate-value">0.92</span>x</label>
     <div class="rate-row">
       <input type="range" id="setting-rate" min="0.6" max="1.15" step="0.02" value="0.92">
@@ -306,18 +283,12 @@
 
     <hr>
 
-    <label>발음 재생 방식</label>
-    <div class="tabs" id="voice-mode-select">
-      <button type="button" class="tab-btn" data-mode="browser">브라우저 음성</button>
-      <button type="button" class="tab-btn" data-mode="ai">✨ AI 음성 (Gemini)</button>
-    </div>
-    <p class="status-line">AI 음성은 더 자연스럽지만 호출마다 약간 지연이 있습니다.</p>
-    <div class="field-row" style="margin-top:8px;">
+    <div class="field-row">
       <div>
-        <label style="margin:0 0 4px;">AI 억양</label>
+        <label style="margin:0 0 4px;">발음 억양</label>
         <select id="setting-ai-accent" class="wide">
-          <option value="en-GB">영국식</option>
           <option value="en-US">미국식</option>
+          <option value="en-GB">영국식</option>
         </select>
       </div>
       <div>
@@ -332,6 +303,7 @@
         </select>
       </div>
     </div>
+    <p class="status-line">AI 음성 호출 실패 시 로컬 음성으로 자동 대체됩니다.</p>
 
     <hr>
 
@@ -397,14 +369,14 @@
     $("#view-practice").hidden = name !== "practice";
     $("#view-quiz").hidden = name !== "quiz";
     $("#btn-back").hidden = name === "home";
-    $("#header-title").textContent = name === "home" ? "🇬🇧 발음 연습"
-      : name === "create" ? "🇬🇧 세트 만들기"
-      : name === "quiz" ? "🇬🇧 " + (getSetById(state.activeSetId)?.name || "") + " · 게임"
-      : "🇬🇧 " + (getSetById(state.activeSetId)?.name || "");
+    $("#header-title").textContent = name === "home" ? "🇺🇸 발음 연습"
+      : name === "create" ? "🇺🇸 세트 만들기"
+      : name === "quiz" ? "🇺🇸 " + (getSetById(state.activeSetId)?.name || "") + " · 게임"
+      : "🇺🇸 " + (getSetById(state.activeSetId)?.name || "");
   }
 
   $("#btn-back").addEventListener("click", () => {
-    speechSynthesis.cancel();
+    stopSpeaking();
     if (state.view === "quiz") {
       renderPractice();
       showView("practice");
@@ -561,7 +533,7 @@
           messages: [
             {
               role: "system",
-              content: "You are a British English teacher. For each given word, write TWO natural example sentences (British English spelling/usage) that clearly demonstrate the word's meaning: 'sentence' must be a very short, simple sentence (3-6 words), and 'sentenceLong' must be a longer, more descriptive sentence (12-18 words) using the same word. Also pick ONE emoji that best represents the word. Respond only with the requested JSON."
+              content: "You are an American English teacher. For each given word, write TWO natural example sentences (American English spelling/usage) that clearly demonstrate the word's meaning: 'sentence' must be a very short, simple sentence (3-6 words), and 'sentenceLong' must be a longer, more descriptive sentence (12-18 words) using the same word. Also pick ONE emoji that best represents the word. Respond only with the requested JSON."
             },
             {
               role: "user",
@@ -683,134 +655,10 @@
     showView("practice");
   }
 
-  // ---- Voice (TTS) selection ----
-  const GENDER_HINTS = {
-    female: ["female", "susan", "hazel", "libby", "sonia", "kate", "serena", "stephanie",
-             "amy", "emma", "joanna", "samantha", "zira", "aria", "jenny", "karen",
-             "moira", "tessa", "fiona", "victoria", "allison", "ava", "salli"],
-    male: ["male", "daniel", "arthur", "george", "oliver", "ryan", "alex", "fred",
-           "guy", "tom", "eric", "james", "brian", "russell", "gordon", "lee", "matthew"]
-  };
-  function guessGender(name) {
-    const n = (name || "").toLowerCase();
-    if (GENDER_HINTS.female.some(k => n.includes(k))) return "♀ 여성(추정)";
-    if (GENDER_HINTS.male.some(k => n.includes(k))) return "♂ 남성(추정)";
-    return "성별 미상";
-  }
-
-  // Apple/OS "novelty" voices — sound effects (Bells, Boing, Organ...) or joke
-  // character voices (Albert, Fred, Zarvox...), unsuitable for pronunciation practice.
-  const NOVELTY_VOICE_NAMES = [
-    "albert", "bad news", "bahh", "bells", "boing", "bubbles", "cellos", "wobble",
-    "deranged", "good news", "hysterical", "pipe organ", "organ", "trinoids",
-    "whisper", "zarvox", "jester", "superstar", "junior", "kathy", "princess",
-    "ralph", "fred", "eddy", "flo", "grandma", "grandpa", "reed", "rocko",
-    "sandy", "shelley", "minor"
-  ];
-  function isNoveltyVoice(name) {
-    const n = (name || "").toLowerCase();
-    return NOVELTY_VOICE_NAMES.some(bad => n.startsWith(bad));
-  }
-
-  let voiceModalFilter = "all";
-  let voiceModalSelection = null; // {uri, name, lang} chosen while modal open, not yet saved
-  let voiceShowNovelty = false;
-  let voiceModeSelection = "browser"; // "browser" | "ai", chosen while modal open, not yet saved
-
-  function matchesAccent(voiceLang, accent) {
-    if (accent === "all") return true;
-    const lang = (voiceLang || "").replace("_", "-");
-    return lang.toLowerCase().startsWith(accent.toLowerCase());
-  }
-
-  function renderVoiceList() {
-    const container = $("#voice-list");
-    if (!container) return;
-    const seen = new Set();
-    const all = speechSynthesis.getVoices()
-      .filter(v => v.lang && v.lang.toLowerCase().startsWith("en"))
-      .filter(v => voiceShowNovelty || !isNoveltyVoice(v.name))
-      .filter(v => {
-        const key = v.name + "|" + v.lang;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    const voices = all.filter(v => matchesAccent(v.lang, voiceModalFilter));
-    container.innerHTML = "";
-    if (voices.length === 0) {
-      container.innerHTML = `<div class="voice-empty">${all.length === 0 ? "이 브라우저에서 사용 가능한 영어 음성을 불러오는 중이거나 없습니다." : "해당 억양의 음성이 없습니다."}</div>`;
-      return;
-    }
-    voices.forEach(v => {
-      const row = document.createElement("div");
-      row.className = "voice-row";
-      const checked = voiceModalSelection && voiceModalSelection.name === v.name && voiceModalSelection.lang === v.lang;
-      row.innerHTML = `
-        <input type="radio" name="voice-pick" ${checked ? "checked" : ""}>
-        <span class="voice-name">${escapeHtml(v.name)}</span>
-        <span class="voice-badge">${escapeHtml(v.lang)} · ${guessGender(v.name)}</span>
-        <button class="icon voice-preview" type="button" title="미리듣기">▶</button>
-      `;
-      row.querySelector('input[type=radio]').addEventListener("change", () => {
-        voiceModalSelection = { uri: v.voiceURI, name: v.name, lang: v.lang };
-      });
-      row.querySelector(".voice-preview").addEventListener("click", (e) => {
-        e.preventDefault();
-        speechSynthesis.cancel();
-        const utter = new SpeechSynthesisUtterance("Hello, this is a pronunciation practice preview.");
-        utter.voice = v;
-        utter.lang = v.lang;
-        utter.rate = parseFloat($("#setting-rate").value) || 0.92;
-        speechSynthesis.speak(utter);
-      });
-      container.appendChild(row);
-    });
-  }
-
-  $$("#accent-filter .tab-btn").forEach(b => {
-    b.addEventListener("click", () => {
-      voiceModalFilter = b.dataset.accent;
-      $$("#accent-filter .tab-btn").forEach(x => x.classList.toggle("active", x === b));
-      renderVoiceList();
-    });
-  });
-
-  $$("#voice-mode-select .tab-btn").forEach(b => {
-    b.addEventListener("click", () => {
-      voiceModeSelection = b.dataset.mode;
-      $$("#voice-mode-select .tab-btn").forEach(x => x.classList.toggle("active", x === b));
-    });
-  });
-
+  // ---- Voice (TTS) ----
   $("#setting-rate").addEventListener("input", () => {
     $("#rate-value").textContent = parseFloat($("#setting-rate").value).toFixed(2);
   });
-
-  $("#setting-show-novelty").addEventListener("change", (e) => {
-    voiceShowNovelty = e.target.checked;
-    renderVoiceList();
-  });
-
-  if ("speechSynthesis" in window) {
-    speechSynthesis.onvoiceschanged = () => {
-      if (!$("#modal-settings").hidden) renderVoiceList();
-    };
-  }
-
-  function pickVoice(settings) {
-    const voices = speechSynthesis.getVoices();
-    if (settings.voice) {
-      const exact = voices.find(v => v.name === settings.voice.name && v.lang === settings.voice.lang);
-      if (exact) return exact;
-      const byLang = voices.find(v => v.lang === settings.voice.lang && !isNoveltyVoice(v.name));
-      if (byLang) return byLang;
-    }
-    return voices.find(v => v.lang === "en-GB" && !isNoveltyVoice(v.name))
-      || voices.find(v => v.lang && v.lang.startsWith("en-GB") && !isNoveltyVoice(v.name))
-      || voices.find(v => v.lang && v.lang.startsWith("en") && !isNoveltyVoice(v.name))
-      || null;
-  }
 
   let aiAudioEl = null;
   let ttsBusy = false;
@@ -823,25 +671,15 @@
     if (v) ttsBusyTimeout = setTimeout(() => setTtsBusy(false), 15000);
   }
 
-  function speakBrowser(text, settings) {
-    speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    const voice = pickVoice(settings);
-    if (voice) { utter.voice = voice; utter.lang = voice.lang; }
-    else { utter.lang = "en-GB"; }
-    utter.rate = settings.rate || 0.92;
-    speechSynthesis.speak(utter);
+  function stopSpeaking() {
+    if (aiAudioEl) { aiAudioEl.pause(); aiAudioEl = null; }
+    setTtsBusy(false);
   }
 
   function speak(text) {
-    const settings = loadSettings();
-    if (settings.voiceMode !== "ai") {
-      speakBrowser(text, settings);
-      return;
-    }
     if (ttsBusy) return;
-    speechSynthesis.cancel();
-    if (aiAudioEl) { aiAudioEl.pause(); aiAudioEl = null; }
+    const settings = loadSettings();
+    stopSpeaking();
     setTtsBusy(true);
     fetch("/tts", {
       method: "POST",
@@ -849,7 +687,7 @@
       body: JSON.stringify({
         text,
         voice: settings.aiVoiceName || "Kore",
-        accent: settings.aiAccent || "en-GB"
+        accent: settings.aiAccent || "en-US"
       })
     })
       .then(res => {
@@ -864,16 +702,15 @@
         aiAudioEl.play();
       })
       .catch(err => {
-        console.warn("AI 음성 실패, 브라우저 음성으로 대체:", err);
+        console.warn("음성 재생 실패:", err);
         setTtsBusy(false);
-        speakBrowser(text, settings);
       });
   }
 
   function renderPractice() {
     const s = getSetById(state.activeSetId);
     if (!s) { renderHome(); showView("home"); return; }
-    $("#header-title").textContent = "🇬🇧 " + s.name;
+    $("#header-title").textContent = "🇺🇸 " + s.name;
     const grid = $("#word-grid");
     grid.innerHTML = "";
     s.words.forEach(w => {
@@ -1026,7 +863,7 @@
   });
 
   function finishQuiz() {
-    speechSynthesis.cancel();
+    stopSpeaking();
     $("#quiz-play").hidden = true;
     $("#quiz-result").hidden = false;
     const total = quiz.queue.length;
@@ -1036,7 +873,7 @@
   }
 
   $("#btn-quiz-exit").addEventListener("click", () => {
-    speechSynthesis.cancel();
+    stopSpeaking();
     renderPractice();
     showView("practice");
   });
@@ -1051,18 +888,10 @@
     const s = loadSettings();
     $("#setting-apikey").value = s.apiKey || "";
     $("#setting-model").value = s.model || "gemma4:31b-cloud";
-    voiceModeSelection = s.voiceMode || "browser";
-    $$("#voice-mode-select .tab-btn").forEach(x => x.classList.toggle("active", x.dataset.mode === voiceModeSelection));
-    $("#setting-ai-accent").value = s.aiAccent || "en-GB";
+    $("#setting-ai-accent").value = s.aiAccent || "en-US";
     $("#setting-ai-voice-name").value = s.aiVoiceName || "Kore";
     $("#setting-rate").value = s.rate || 0.92;
     $("#rate-value").textContent = (s.rate || 0.92).toFixed(2);
-    voiceModalFilter = "all";
-    voiceModalSelection = s.voice || null;
-    voiceShowNovelty = false;
-    $("#setting-show-novelty").checked = false;
-    $$("#accent-filter .tab-btn").forEach(x => x.classList.toggle("active", x.dataset.accent === "all"));
-    renderVoiceList();
     $("#modal-settings").hidden = false;
   });
   $("#btn-close-settings").addEventListener("click", () => $("#modal-settings").hidden = true);
@@ -1070,10 +899,8 @@
     saveSettings({
       apiKey: $("#setting-apikey").value.trim(),
       model: $("#setting-model").value.trim() || "gemma4:31b-cloud",
-      voiceMode: voiceModeSelection,
       aiAccent: $("#setting-ai-accent").value,
       aiVoiceName: $("#setting-ai-voice-name").value,
-      voice: voiceModalSelection,
       rate: parseFloat($("#setting-rate").value) || 0.92
     });
     $("#modal-settings").hidden = true;

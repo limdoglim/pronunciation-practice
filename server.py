@@ -39,7 +39,7 @@ def pcm_to_wav(pcm_bytes, sample_rate=24000, channels=1, sample_width=2):
 
 
 def gemini_tts(text, voice, accent):
-    prompt = f"{ACCENT_PROMPTS.get(accent, ACCENT_PROMPTS['en-GB'])}: {text}"
+    prompt = f"{ACCENT_PROMPTS.get(accent, ACCENT_PROMPTS['en-US'])}: {text}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
@@ -62,7 +62,7 @@ def gemini_tts(text, voice, accent):
 def kokoro_tts(text, accent):
     from kokoro import KPipeline
 
-    cfg = KOKORO_VOICES.get(accent, KOKORO_VOICES["en-GB"])
+    cfg = KOKORO_VOICES.get(accent, KOKORO_VOICES["en-US"])
     pipeline = _kokoro_pipelines.get(cfg["lang"])
     if pipeline is None:
         pipeline = KPipeline(lang_code=cfg["lang"])
@@ -89,7 +89,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
         text = (body.get("text") or "").strip()
         voice = body.get("voice") or "Kore"
-        accent = body.get("accent") or "en-GB"
+        accent = body.get("accent") or "en-US"
         if not text:
             self.send_error(400)
             return
