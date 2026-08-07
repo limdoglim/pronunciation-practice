@@ -1,3 +1,4 @@
 .DS_Store
 tts_cache/
 .venv/
+.playwright-mcp/
