@@ -209,6 +209,11 @@
     <div class="tabpanel" id="tab-ai" hidden>
       <label>단어 목록 (한 줄에 한 단어)</label>
       <textarea id="ai-words" placeholder="beautiful&#10;schedule&#10;privacy"></textarea>
+      <label style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+        <span>AI 프롬프트 (수정 가능)</span>
+        <button type="button" id="btn-ai-prompt-reset" style="font-size:0.75rem; padding:4px 8px;">기본값으로</button>
+      </label>
+      <textarea id="ai-prompt" style="min-height:110px;"></textarea>
       <div class="modal-footer" style="justify-content:flex-start; margin-top:10px;">
         <button class="primary" id="btn-ai-generate">✨ AI로 예문·이모지 생성</button>
       </div>
@@ -423,6 +428,8 @@
   $("#btn-new-set").addEventListener("click", () => openCreate(null));
 
   // ---------- Create / Edit ----------
+  const DEFAULT_AI_PROMPT = "You are an English teacher for elementary school students (age 7-12). For each given word, write TWO simple example sentences using vocabulary and topics appropriate for young children (family, school, animals, food, play, everyday routines) and American English spelling/usage. Avoid complex, abstract, or scary/mature vocabulary. 'sentence' must be a very short, simple sentence (3-6 words), and 'sentenceLong' must be a slightly longer but still simple sentence (8-14 words) using the same word. Also pick ONE emoji that best represents the word. Respond only with the requested JSON.";
+
   function openCreate(setId) {
     state.editingSetId = setId;
     const existing = setId ? getSetById(setId) : null;
@@ -430,6 +437,7 @@
     state.rows = existing ? existing.words.map(w => ({ ...w })) : [];
     $("#manual-words").value = "";
     $("#ai-words").value = "";
+    $("#ai-prompt").value = loadSettings().aiPrompt || DEFAULT_AI_PROMPT;
     $("#json-input").value = "";
     $("#ai-status").textContent = "";
     $("#json-status").textContent = "";
@@ -437,6 +445,10 @@
     renderEditorRows();
     showView("create");
   }
+
+  $("#btn-ai-prompt-reset").addEventListener("click", () => {
+    $("#ai-prompt").value = DEFAULT_AI_PROMPT;
+  });
 
   $("#btn-cancel-create").addEventListener("click", () => {
     renderHome();
@@ -521,6 +533,8 @@
         },
         required: ["items"]
       };
+      const promptText = $("#ai-prompt").value.trim() || DEFAULT_AI_PROMPT;
+      saveSettings({ ...settings, aiPrompt: promptText });
       const headers = { "Content-Type": "application/json" };
       if (settings.apiKey) headers["Authorization"] = "Bearer " + settings.apiKey;
       const res = await fetch("/api/chat", {
@@ -533,7 +547,7 @@
           messages: [
             {
               role: "system",
-              content: "You are an American English teacher. For each given word, write TWO natural example sentences (American English spelling/usage) that clearly demonstrate the word's meaning: 'sentence' must be a very short, simple sentence (3-6 words), and 'sentenceLong' must be a longer, more descriptive sentence (12-18 words) using the same word. Also pick ONE emoji that best represents the word. Respond only with the requested JSON."
+              content: promptText
             },
             {
               role: "user",
