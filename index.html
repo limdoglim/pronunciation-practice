@@ -164,9 +164,30 @@
     width: 100%; text-align: left; padding: 14px 16px; font-size: 1rem;
     border-radius: 12px; background: var(--card); border: 1px solid var(--border); color: var(--text);
   }
-  .quiz-choice-btn.correct { background: #2a6b3e; border-color: #2a6b3e; color: #fff; }
+  .quiz-choice-btn.correct { background: #2a6b3e; border-color: #2a6b3e; color: #fff; animation: quiz-pop 0.35s ease; }
   .quiz-choice-btn.wrong { background: var(--danger); border-color: var(--danger); color: #fff; }
   .quiz-choice-btn:disabled { cursor: default; opacity: 0.85; }
+
+  .quiz-progress-bar { height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; margin: 8px 0 14px; }
+  .quiz-progress-fill { height: 100%; background: var(--accent); border-radius: 5px; transition: width 0.3s ease; }
+  .quiz-timer-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin: 0 0 10px; }
+  .quiz-timer-bar[hidden] { display: none; }
+  .quiz-timer-fill { height: 100%; background: #e0a72e; width: 100%; }
+
+  @keyframes quiz-pop {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+  }
+
+  .confetti-piece {
+    position: fixed; width: 8px; height: 8px; border-radius: 2px;
+    pointer-events: none; z-index: 999; top: 0; left: 0;
+    animation: confetti-fly 0.9s ease-out forwards;
+  }
+  @keyframes confetti-fly {
+    to { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity: 0; }
+  }
 </style>
 </head>
 <body>
@@ -256,6 +277,8 @@
         <div class="quiz-progress" id="quiz-progress"></div>
         <div class="quiz-score" id="quiz-score"></div>
       </div>
+      <div class="quiz-progress-bar"><div class="quiz-progress-fill" id="quiz-progress-fill"></div></div>
+      <div class="quiz-timer-bar" id="quiz-timer-bar" hidden><div class="quiz-timer-fill" id="quiz-timer-fill"></div></div>
       <div class="quiz-audio-area">
         <button class="primary" id="btn-quiz-replay">🔊 다시 듣기</button>
       </div>
@@ -329,6 +352,10 @@
   <div class="modal">
     <h2>듣고 맞추기 — 난이도 선택</h2>
     <p class="status-line">모든 단어가 한 번씩 출제됩니다.</p>
+    <label style="display:flex; align-items:center; gap:8px; justify-content:center; margin:8px 0 4px; font-size:0.9rem;">
+      <input type="checkbox" id="quiz-speed-toggle" style="margin:0;">
+      ⏱ 스피드모드 (제한시간 안에 맞추기)
+    </label>
     <div class="modal-footer" style="justify-content:stretch; flex-direction:column; gap:10px;">
       <button class="primary" id="btn-quiz-mode-word" style="width:100%;">🔤 단어로 맞추기 (쉬움)<br><span style="font-weight:normal; font-size:0.78rem;">단어 발음을 듣고 고르기</span></button>
       <button class="primary" id="btn-quiz-mode-sentence" style="width:100%;">📝 예문으로 맞추기 (어려움)<br><span style="font-weight:normal; font-size:0.78rem;">예문을 듣고 어떤 단어인지 고르기</span></button>
@@ -690,7 +717,7 @@
     setTtsBusy(false);
   }
 
-  function speak(text) {
+  function speak(text, onDone) {
     if (ttsBusy) return;
     const settings = loadSettings();
     stopSpeaking();
@@ -711,13 +738,14 @@
       .then(blob => {
         aiAudioEl = new Audio(URL.createObjectURL(blob));
         aiAudioEl.playbackRate = settings.rate || 0.92;
-        aiAudioEl.addEventListener("ended", () => setTtsBusy(false));
-        aiAudioEl.addEventListener("error", () => setTtsBusy(false));
+        aiAudioEl.addEventListener("ended", () => { setTtsBusy(false); if (onDone) onDone(); });
+        aiAudioEl.addEventListener("error", () => { setTtsBusy(false); if (onDone) onDone(); });
         aiAudioEl.play();
       })
       .catch(err => {
         console.warn("음성 재생 실패:", err);
         setTtsBusy(false);
+        if (onDone) onDone();
       });
   }
 
@@ -789,17 +817,19 @@
       alert("게임을 하려면 단어가 2개 이상 필요합니다.");
       return;
     }
+    $("#quiz-speed-toggle").checked = false;
     $("#modal-quiz-start").hidden = false;
   });
   $("#btn-quiz-start-cancel").addEventListener("click", () => $("#modal-quiz-start").hidden = true);
-  $("#btn-quiz-mode-word").addEventListener("click", () => { $("#modal-quiz-start").hidden = true; startQuiz("word"); });
-  $("#btn-quiz-mode-sentence").addEventListener("click", () => { $("#modal-quiz-start").hidden = true; startQuiz("sentence"); });
+  $("#btn-quiz-mode-word").addEventListener("click", () => { $("#modal-quiz-start").hidden = true; startQuiz("word", $("#quiz-speed-toggle").checked); });
+  $("#btn-quiz-mode-sentence").addEventListener("click", () => { $("#modal-quiz-start").hidden = true; startQuiz("sentence", $("#quiz-speed-toggle").checked); });
 
-  function startQuiz(difficulty) {
+  function startQuiz(difficulty, speedMode) {
     const s = getSetById(state.activeSetId);
     quiz = {
       setId: s.id,
       difficulty,
+      speedMode: !!speedMode,
       queue: shuffle(s.words),
       index: 0,
       score: 0,
@@ -815,13 +845,99 @@
     return quiz.difficulty === "word" ? word.word : (word.sentence || word.word);
   }
 
+  // ---- Sound effects (WebAudio, no asset files) ----
+  let audioCtx = null;
+  function playTone(freqs, dur) {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      let t = audioCtx.currentTime;
+      freqs.forEach(f => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = f;
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(0.18, t + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(t);
+        osc.stop(t + dur + 0.02);
+        t += dur * 0.7;
+      });
+    } catch (e) { /* audio unsupported, ignore */ }
+  }
+  function playCorrectSound() { playTone([523.25, 659.25, 783.99], 0.13); }
+  function playWrongSound() { playTone([293.66, 246.94], 0.18); }
+
+  // ---- Confetti burst (no asset files) ----
+  function confettiBurst(originEl) {
+    const rect = originEl.getBoundingClientRect();
+    const colors = ["#ff6b6b", "#ffd93d", "#6bcb77", "#4d96ff", "#c77dff"];
+    for (let i = 0; i < 20; i++) {
+      const p = document.createElement("div");
+      p.className = "confetti-piece";
+      p.style.left = (rect.left + rect.width / 2) + "px";
+      p.style.top = (rect.top + rect.height / 2) + "px";
+      p.style.background = colors[i % colors.length];
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 50 + Math.random() * 70;
+      p.style.setProperty("--dx", Math.cos(angle) * dist + "px");
+      p.style.setProperty("--dy", Math.sin(angle) * dist - 30 + "px");
+      p.style.setProperty("--rot", (Math.random() * 720 - 360) + "deg");
+      document.body.appendChild(p);
+      p.addEventListener("animationend", () => p.remove());
+    }
+  }
+
+  // ---- Best-score tracking ----
+  const LS_BEST = "pronunciation_best_v1";
+  function loadBest() {
+    try { return JSON.parse(localStorage.getItem(LS_BEST)) || {}; }
+    catch (e) { return {}; }
+  }
+  function saveBest(best) { localStorage.setItem(LS_BEST, JSON.stringify(best)); }
+  function bestKey(setId, difficulty) { return setId + ":" + difficulty; }
+
+  // ---- Speed-mode question timer ----
+  const SPEED_ROUND_MS = 8000;
+  let quizTimerTimeout = null;
+  function startQuestionTimer() {
+    clearTimeout(quizTimerTimeout);
+    const bar = $("#quiz-timer-bar");
+    const fill = $("#quiz-timer-fill");
+    if (!quiz.speedMode) { bar.hidden = true; return; }
+    bar.hidden = false;
+    fill.style.transition = "none";
+    fill.style.width = "100%";
+    void fill.offsetWidth;
+    fill.style.transition = `width ${SPEED_ROUND_MS}ms linear`;
+    fill.style.width = "0%";
+    quizTimerTimeout = setTimeout(handleQuizTimeout, SPEED_ROUND_MS);
+  }
+  function handleQuizTimeout() {
+    if (!quiz || quiz.locked) return;
+    quiz.locked = true;
+    const target = quiz.queue[quiz.index];
+    const choicesEl = $("#quiz-choices");
+    Array.from(choicesEl.children).forEach(child => {
+      child.disabled = true;
+      if (child.textContent === target.word) child.classList.add("correct");
+    });
+    playWrongSound();
+    const fb = $("#quiz-feedback");
+    fb.textContent = `⏱ 시간 초과! 정답은 "${target.word}" 입니다.`;
+    fb.className = "status-line error";
+    $("#btn-quiz-next").hidden = false;
+  }
+
   function renderQuizRound() {
     const s = getSetById(quiz.setId);
     const target = quiz.queue[quiz.index];
     quiz.locked = false;
 
     $("#quiz-progress").textContent = `${quiz.index + 1} / ${quiz.queue.length}`;
-    $("#quiz-score").textContent = `맞은 개수: ${quiz.score}`;
+    $("#quiz-score").textContent = `⭐ × ${quiz.score}`;
+    $("#quiz-progress-fill").style.width = Math.round((quiz.index / quiz.queue.length) * 100) + "%";
     $("#quiz-feedback").textContent = "";
     $("#quiz-feedback").className = "status-line";
     $("#btn-quiz-next").hidden = true;
@@ -840,7 +956,8 @@
       choicesEl.appendChild(btn);
     });
 
-    speak(quizAudioFor(target));
+    $("#quiz-timer-bar").hidden = true;
+    speak(quizAudioFor(target), () => startQuestionTimer());
   }
 
   $("#btn-quiz-replay").addEventListener("click", () => {
@@ -850,6 +967,7 @@
 
   function handleQuizAnswer(chosen, target, btn, choicesEl) {
     if (quiz.locked) return;
+    clearTimeout(quizTimerTimeout);
     quiz.locked = true;
     const correct = chosen.id === target.id;
     if (correct) quiz.score++;
@@ -864,6 +982,13 @@
     fb.textContent = correct ? "정답이에요! 🎉" : `아쉬워요. 정답은 "${target.word}" 입니다.`;
     fb.className = correct ? "status-line" : "status-line error";
 
+    if (correct) {
+      playCorrectSound();
+      confettiBurst(btn);
+    } else {
+      playWrongSound();
+    }
+
     $("#btn-quiz-next").hidden = false;
   }
 
@@ -877,16 +1002,38 @@
   });
 
   function finishQuiz() {
+    clearTimeout(quizTimerTimeout);
     stopSpeaking();
+    $("#quiz-progress-fill").style.width = "100%";
     $("#quiz-play").hidden = true;
     $("#quiz-result").hidden = false;
     const total = quiz.queue.length;
     const pct = Math.round((quiz.score / total) * 100);
+
+    const best = loadBest();
+    const key = bestKey(quiz.setId, quiz.difficulty);
+    const prevBest = best[key];
+    const isNewBest = !prevBest || quiz.score > prevBest.score;
+    if (isNewBest) {
+      best[key] = { score: quiz.score, total, pct };
+      saveBest(best);
+    }
+
+    const modeLabel = quiz.difficulty === "word" ? "단어 듣기" : "예문 듣기";
+    const bestLine = isNewBest && prevBest
+      ? `🏆 최고기록 경신! (이전 ${prevBest.score}/${prevBest.total})`
+      : isNewBest
+      ? `🏆 첫 기록 등록!`
+      : `최고기록: ${prevBest.score}/${prevBest.total}`;
     $("#quiz-result-text").innerHTML =
-      `🎉 결과: ${quiz.score} / ${total} (${pct}%)<br><span style="font-size:0.85rem;">${quiz.difficulty === "word" ? "단어 듣기" : "예문 듣기"} 난이도</span>`;
+      `🎉 결과: ${quiz.score} / ${total} (${pct}%)<br>` +
+      `<span style="font-size:0.85rem;">${modeLabel}${quiz.speedMode ? " · ⏱ 스피드모드" : ""}</span><br>` +
+      `<span style="font-size:0.85rem;">${bestLine}</span>`;
+    if (isNewBest) confettiBurst($("#quiz-result-text"));
   }
 
   $("#btn-quiz-exit").addEventListener("click", () => {
+    clearTimeout(quizTimerTimeout);
     stopSpeaking();
     renderPractice();
     showView("practice");
@@ -895,7 +1042,7 @@
     renderPractice();
     showView("practice");
   });
-  $("#btn-quiz-retry").addEventListener("click", () => startQuiz(quiz.difficulty));
+  $("#btn-quiz-retry").addEventListener("click", () => startQuiz(quiz.difficulty, quiz.speedMode));
 
   // ---------- Settings ----------
   $("#btn-settings").addEventListener("click", () => {
