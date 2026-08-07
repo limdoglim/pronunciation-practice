@@ -1073,6 +1073,20 @@
   });
 
   // ---------- Init ----------
+  const DEFAULT_SET_WORDS = ["ask", "an", "over", "just", "from", "any", "how", "know", "put", "take", "every", "old"];
+  function seedDefaultSetIfEmpty() {
+    if (loadSets().length > 0) return;
+    const now = Date.now();
+    saveSets([{
+      id: uid(),
+      name: "테스트 세트",
+      words: DEFAULT_SET_WORDS.map(w => ({ id: uid(), word: w, sentence: "", sentenceLong: "", emoji: "🔤", image: "" })),
+      createdAt: now,
+      updatedAt: now
+    }]);
+  }
+  seedDefaultSetIfEmpty();
+
   renderHome();
   showView("home");
 })();
