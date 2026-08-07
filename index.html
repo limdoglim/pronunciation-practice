@@ -88,6 +88,8 @@
   .word-card .visual { font-size: 2.1rem; line-height: 1; }
   .word-card img.visual { width: 52px; height: 52px; object-fit: cover; border-radius: 10px; font-size: 0; }
   .word-card .word-text { font-weight: 600; font-size: 1.02rem; }
+  .word-card .meaning-text { font-size: 0.8rem; color: var(--sub); min-height: 1em; }
+  .word-card .meaning-text[hidden] { display: none; }
   .card-actions { display: flex; flex-direction: column; gap: 5px; width: 100%; margin-top: 4px; }
   .card-btn {
     width: 100%; padding: 7px 6px; font-size: 0.76rem; border-radius: 9px;
@@ -103,7 +105,7 @@
 
   /* Editor table */
   .editor-row {
-    display: grid; grid-template-columns: 28px 1fr 1fr 1fr 50px 50px 26px;
+    display: grid; grid-template-columns: 24px 1fr 1fr 1fr 60px 44px 44px 24px;
     gap: 6px; align-items: center; margin-bottom: 6px;
   }
   .editor-row input[type=text] {
@@ -242,8 +244,8 @@
     </div>
 
     <div class="tabpanel" id="tab-json" hidden>
-      <label>JSON 붙여넣기 — 형식: [{"word":"...", "sentence":"...(짧은 예문)", "sentenceLong":"...(긴 예문)", "emoji":"..."}]</label>
-      <textarea id="json-input" placeholder='[{"word":"beautiful","sentence":"It looks beautiful.","sentenceLong":"The sunset over the hills looked absolutely beautiful this evening.","emoji":"🌅"}]'></textarea>
+      <label>JSON 붙여넣기 — 형식: [{"word":"...", "sentence":"...(짧은 예문)", "sentenceLong":"...(긴 예문)", "meaning":"...(한국어 뜻)", "emoji":"..."}]</label>
+      <textarea id="json-input" placeholder='[{"word":"beautiful","sentence":"It looks beautiful.","sentenceLong":"The sunset over the hills looked absolutely beautiful this evening.","meaning":"아름다운","emoji":"🌅"}]'></textarea>
       <div class="modal-footer" style="justify-content:flex-start; margin-top:10px;">
         <button id="btn-json-load">표로 불러오기</button>
       </div>
@@ -455,7 +457,7 @@
   $("#btn-new-set").addEventListener("click", () => openCreate(null));
 
   // ---------- Create / Edit ----------
-  const DEFAULT_AI_PROMPT = "You are an English teacher for elementary school students (age 7-12). For each given word, write TWO simple example sentences using vocabulary and topics appropriate for young children (family, school, animals, food, play, everyday routines) and American English spelling/usage. Avoid complex, abstract, or scary/mature vocabulary. 'sentence' must be a very short, simple sentence (3-6 words), and 'sentenceLong' must be a slightly longer but still simple sentence (8-14 words) using the same word. Also pick ONE emoji that best represents the word. Respond only with the requested JSON.";
+  const DEFAULT_AI_PROMPT = "You are an English teacher for elementary school students (age 7-12). For each given word, write TWO simple example sentences using vocabulary and topics appropriate for young children (family, school, animals, food, play, everyday routines) and American English spelling/usage. Avoid complex, abstract, or scary/mature vocabulary. 'sentence' must be a very short, simple sentence (3-6 words), and 'sentenceLong' must be a slightly longer but still simple sentence (8-14 words) using the same word. Also provide 'meaning': the word's Korean meaning as a short, simple Korean word or phrase (a native Korean elementary student would understand it) — this is a secondary aid, not the main focus. Also pick ONE emoji that best represents the word. Respond only with the requested JSON.";
 
   function openCreate(setId) {
     state.editingSetId = setId;
@@ -496,7 +498,7 @@
 
   $("#btn-manual-load").addEventListener("click", () => {
     const words = wordsFromTextarea($("#manual-words").value);
-    words.forEach(w => state.rows.push({ id: uid(), word: w, sentence: "", sentenceLong: "", emoji: "🔤", image: "" }));
+    words.forEach(w => state.rows.push({ id: uid(), word: w, sentence: "", sentenceLong: "", meaning: "", emoji: "🔤", image: "" }));
     renderEditorRows();
   });
 
@@ -514,6 +516,7 @@
           word: String(item.word),
           sentence: String(item.sentence || ""),
           sentenceLong: String(item.sentenceLong || ""),
+          meaning: String(item.meaning || ""),
           emoji: String(item.emoji || "🔤"),
           image: ""
         });
@@ -552,9 +555,10 @@
                 word: { type: "string" },
                 sentence: { type: "string" },
                 sentenceLong: { type: "string" },
+                meaning: { type: "string" },
                 emoji: { type: "string" }
               },
-              required: ["word", "sentence", "sentenceLong", "emoji"]
+              required: ["word", "sentence", "sentenceLong", "meaning", "emoji"]
             }
           }
         },
@@ -597,6 +601,7 @@
           word,
           sentence: (v && v.sentence) || "",
           sentenceLong: (v && v.sentenceLong) || "",
+          meaning: (v && v.meaning) || "",
           emoji: (v && v.emoji) || ""
         }));
       }
@@ -606,6 +611,7 @@
           word: String(item.word || ""),
           sentence: String(item.sentence || ""),
           sentenceLong: String(item.sentenceLong || ""),
+          meaning: String(item.meaning || ""),
           emoji: String(item.emoji || "🔤"),
           image: ""
         });
@@ -632,6 +638,7 @@
         <input type="text" class="f-word" placeholder="단어" value="${escapeHtml(row.word)}">
         <input type="text" class="f-sentence" placeholder="짧은 예문" value="${escapeHtml(row.sentence)}">
         <input type="text" class="f-sentence-long" placeholder="긴 예문" value="${escapeHtml(row.sentenceLong || "")}">
+        <input type="text" class="f-meaning" placeholder="뜻" value="${escapeHtml(row.meaning || "")}">
         <input type="text" class="f-emoji" placeholder="🔤" value="${escapeHtml(row.emoji)}">
         <label style="cursor:pointer; text-align:center; margin:0;">
           ${row.image ? `<img class="thumb" src="${row.image}">` : "📷"}
@@ -642,6 +649,7 @@
       el.querySelector(".f-word").addEventListener("input", e => row.word = e.target.value);
       el.querySelector(".f-sentence").addEventListener("input", e => row.sentence = e.target.value);
       el.querySelector(".f-sentence-long").addEventListener("input", e => row.sentenceLong = e.target.value);
+      el.querySelector(".f-meaning").addEventListener("input", e => row.meaning = e.target.value);
       el.querySelector(".f-emoji").addEventListener("input", e => row.emoji = e.target.value);
       el.querySelector(".f-remove").addEventListener("click", () => {
         state.rows.splice(i, 1);
@@ -662,7 +670,7 @@
   }
 
   $("#btn-add-row").addEventListener("click", () => {
-    state.rows.push({ id: uid(), word: "", sentence: "", sentenceLong: "", emoji: "🔤", image: "" });
+    state.rows.push({ id: uid(), word: "", sentence: "", sentenceLong: "", meaning: "", emoji: "🔤", image: "" });
     renderEditorRows();
   });
 
@@ -761,15 +769,25 @@
       card.innerHTML = `
         ${w.image ? `<img class="visual" src="${w.image}">` : `<div class="visual">${escapeHtml(w.emoji || "🔤")}</div>`}
         <div class="word-text">${escapeHtml(w.word)}</div>
+        <div class="meaning-text" hidden></div>
         <div class="card-actions">
           <button class="card-btn" data-kind="word">🔊 단어</button>
           <button class="card-btn" data-kind="short">📝 짧은 예문</button>
           <button class="card-btn" data-kind="long">📖 긴 예문</button>
+          ${w.meaning ? `<button class="card-btn" data-kind="meaning">🇰🇷 뜻</button>` : ""}
         </div>
       `;
       card.querySelector('[data-kind="word"]').addEventListener("click", () => speak(w.word));
       card.querySelector('[data-kind="short"]').addEventListener("click", () => speak(w.sentence || w.word));
       card.querySelector('[data-kind="long"]').addEventListener("click", () => speak(w.sentenceLong || w.sentence || w.word));
+      const meaningBtn = card.querySelector('[data-kind="meaning"]');
+      if (meaningBtn) {
+        meaningBtn.addEventListener("click", () => {
+          const el = card.querySelector(".meaning-text");
+          el.hidden = !el.hidden;
+          el.textContent = el.hidden ? "" : w.meaning;
+        });
+      }
       grid.appendChild(card);
     });
   }
@@ -789,7 +807,7 @@
   $("#btn-export-set").addEventListener("click", () => {
     const s = getSetById(state.activeSetId);
     if (!s) return;
-    const payload = s.words.map(w => ({ word: w.word, sentence: w.sentence, sentenceLong: w.sentenceLong || "", emoji: w.emoji }));
+    const payload = s.words.map(w => ({ word: w.word, sentence: w.sentence, sentenceLong: w.sentenceLong || "", meaning: w.meaning || "", emoji: w.emoji }));
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -1080,7 +1098,7 @@
     saveSets([{
       id: uid(),
       name: "테스트 세트",
-      words: DEFAULT_SET_WORDS.map(w => ({ id: uid(), word: w, sentence: "", sentenceLong: "", emoji: "🔤", image: "" })),
+      words: DEFAULT_SET_WORDS.map(w => ({ id: uid(), word: w, sentence: "", sentenceLong: "", meaning: "", emoji: "🔤", image: "" })),
       createdAt: now,
       updatedAt: now
     }]);
