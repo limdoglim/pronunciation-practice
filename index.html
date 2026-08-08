@@ -323,7 +323,7 @@
         <div class="quiz-progress" id="match-progress"></div>
         <div class="quiz-score" id="match-moves"></div>
       </div>
-      <p class="status-line">카드 두 개를 뒤집어 같은 단어끼리 짝을 맞춰보세요.</p>
+      <p class="status-line" id="match-hint">카드 두 개를 뒤집어 같은 단어끼리 짝을 맞춰보세요.</p>
       <div class="match-grid" id="match-grid"></div>
       <div class="modal-footer">
         <button id="btn-match-exit">그만하기</button>
@@ -400,6 +400,17 @@
       <button class="primary" id="btn-quiz-mode-word" style="width:100%;">🔤 단어로 맞추기 (쉬움)<br><span style="font-weight:normal; font-size:0.78rem;">단어 발음을 듣고 고르기</span></button>
       <button class="primary" id="btn-quiz-mode-sentence" style="width:100%;">📝 예문으로 맞추기 (어려움)<br><span style="font-weight:normal; font-size:0.78rem;">예문을 듣고 어떤 단어인지 고르기</span></button>
       <button id="btn-quiz-start-cancel" style="width:100%;">취소</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-match-start" hidden>
+  <div class="modal">
+    <h2>짝맞추기 — 난이도 선택</h2>
+    <div class="modal-footer" style="justify-content:stretch; flex-direction:column; gap:10px;">
+      <button class="primary" id="btn-match-mode-word" style="width:100%;">🔤 단어보고 맞추기 (쉬움)<br><span style="font-weight:normal; font-size:0.78rem;">카드에 단어가 보이고 발음도 들려요</span></button>
+      <button class="primary" id="btn-match-mode-sound" style="width:100%;">👂 듣고 맞추기 (하드모드)<br><span style="font-weight:normal; font-size:0.78rem;">단어는 안 보이고 소리만 듣고 짝을 기억해서 맞춰요</span></button>
+      <button id="btn-match-start-cancel" style="width:100%;">취소</button>
     </div>
   </div>
 </div>
@@ -1160,10 +1171,13 @@
       alert("짝맞추기를 하려면 단어가 2개 이상 필요합니다.");
       return;
     }
-    startMatch();
+    $("#modal-match-start").hidden = false;
   });
+  $("#btn-match-start-cancel").addEventListener("click", () => $("#modal-match-start").hidden = true);
+  $("#btn-match-mode-word").addEventListener("click", () => { $("#modal-match-start").hidden = true; startMatch("word"); });
+  $("#btn-match-mode-sound").addEventListener("click", () => { $("#modal-match-start").hidden = true; startMatch("sound"); });
 
-  function startMatch() {
+  function startMatch(mode) {
     const s = getSetById(state.activeSetId);
     const words = shuffle(s.words).slice(0, Math.min(MATCH_MAX_PAIRS, s.words.length));
     const cards = [];
@@ -1174,6 +1188,7 @@
     });
     match = {
       setId: s.id,
+      mode,
       cards: shuffle(cards),
       cols: bestMatchColumns(cards.length),
       flipped: [],
@@ -1182,6 +1197,9 @@
       totalPairs: words.length,
       locked: false
     };
+    $("#match-hint").textContent = mode === "sound"
+      ? "👂 하드모드: 카드를 뒤집으면 소리만 들려요. 소리를 기억해서 같은 단어끼리 짝을 맞춰보세요."
+      : "카드 두 개를 뒤집어 같은 단어끼리 짝을 맞춰보세요.";
     $("#match-result").hidden = true;
     $("#match-play").hidden = false;
     showView("match");
@@ -1198,10 +1216,12 @@
       const el = document.createElement("div");
       el.dataset.wordId = c.wordId;
       el.className = "match-card" + (c.matched ? " matched" : c.flippedUp ? "" : " hidden-face");
-      if (c.matched || c.flippedUp) {
+      if (c.matched || (c.flippedUp && match.mode === "word")) {
         el.innerHTML =
           `<div class="m-emoji">${c.image ? `<img src="${c.image}">` : escapeHtml(c.emoji)}</div>` +
           `<div class="m-word">${escapeHtml(c.word)}</div>`;
+      } else if (c.flippedUp) {
+        el.innerHTML = `<div class="m-emoji">🔊</div>`;
       } else {
         el.textContent = "❔";
       }
@@ -1252,7 +1272,7 @@
     $("#match-result").hidden = false;
 
     const best = loadMatchBest();
-    const key = match.setId + ":" + match.totalPairs;
+    const key = match.setId + ":" + match.totalPairs + ":" + match.mode;
     const prevBest = best[key];
     const isNewBest = !prevBest || match.moves < prevBest.moves;
     if (isNewBest) {
@@ -1279,7 +1299,7 @@
     renderPractice();
     showView("practice");
   });
-  $("#btn-match-retry").addEventListener("click", () => startMatch());
+  $("#btn-match-retry").addEventListener("click", () => startMatch(match.mode));
 
   // ---------- Settings ----------
   $("#btn-settings").addEventListener("click", () => {
