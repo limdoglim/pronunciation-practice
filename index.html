@@ -183,7 +183,7 @@
   }
 
   /* Matching game */
-  .match-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; margin-top: 16px; }
+  .match-grid { display: grid; gap: 10px; margin-top: 16px; }
   .match-card {
     aspect-ratio: 1 / 1; border-radius: 12px; border: 1px solid var(--border);
     background: var(--card); display: flex; align-items: center; justify-content: center;
@@ -1143,6 +1143,15 @@
   }
   function saveMatchBest(b) { localStorage.setItem(LS_MATCH_BEST, JSON.stringify(b)); }
 
+  // Picks a column count that evenly divides the card total, as close to
+  // square as possible, so the grid always fills to a clean rectangle
+  // (no lonely leftover card in the last row).
+  function bestMatchColumns(total) {
+    let cols = Math.ceil(Math.sqrt(total));
+    while (total % cols !== 0) cols++;
+    return cols;
+  }
+
   $("#btn-start-match").addEventListener("click", () => {
     const s = getSetById(state.activeSetId);
     if (!s || s.words.length < 2) {
@@ -1163,6 +1172,7 @@
     match = {
       setId: s.id,
       cards: shuffle(cards),
+      cols: bestMatchColumns(cards.length),
       flipped: [],
       moves: 0,
       matchedPairs: 0,
@@ -1180,6 +1190,7 @@
     $("#match-moves").textContent = `시도: ${match.moves}`;
     const grid = $("#match-grid");
     grid.innerHTML = "";
+    grid.style.gridTemplateColumns = `repeat(${match.cols}, 1fr)`;
     match.cards.forEach(c => {
       const el = document.createElement("div");
       el.className = "match-card" + (c.matched ? " matched" : c.flippedUp ? " word-face" : " hidden-face");
