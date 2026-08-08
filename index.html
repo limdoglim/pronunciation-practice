@@ -78,6 +78,25 @@
   .top-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
   /* Practice */
+  .now-playing {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--accent); color: var(--accent-text);
+    border-radius: 14px; padding: 12px 16px; margin: 16px 0 4px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.18);
+  }
+  .now-playing-track { flex: 1; overflow: hidden; white-space: nowrap; }
+  #now-playing-text { display: inline-block; font-weight: 700; font-size: 1.08rem; letter-spacing: 0.2px; }
+  #now-playing-text.marquee { animation-name: marquee-scroll; animation-timing-function: ease-in-out; animation-iteration-count: infinite; animation-direction: alternate; }
+  @keyframes marquee-scroll { from { transform: translateX(0); } to { transform: translateX(var(--marquee-dist, 0)); } }
+  .now-playing-btn {
+    flex-shrink: 0; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4);
+    color: inherit; border-radius: 10px; padding: 7px 12px; font-size: 0.8rem; font-weight: 600;
+  }
+  .now-playing-meaning {
+    margin: 0 0 8px; padding: 9px 14px; border-radius: 10px;
+    background: var(--card); border: 1px solid var(--border); color: var(--text); font-size: 0.92rem;
+  }
+
   .word-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 16px; }
   .word-card {
     background: var(--card); border: 1px solid var(--border); border-radius: 16px;
@@ -88,8 +107,6 @@
   .word-card .visual { font-size: 2.1rem; line-height: 1; }
   .word-card img.visual { width: 52px; height: 52px; object-fit: cover; border-radius: 10px; font-size: 0; }
   .word-card .word-text { font-weight: 600; font-size: 1.02rem; }
-  .word-card .meaning-text { font-size: 0.8rem; color: var(--sub); min-height: 1em; }
-  .word-card .meaning-text[hidden] { display: none; }
   .card-actions { display: flex; flex-direction: column; gap: 5px; width: 100%; margin-top: 4px; }
   .card-btn {
     width: 100%; padding: 7px 6px; font-size: 0.76rem; border-radius: 9px;
@@ -259,8 +276,8 @@
     </div>
 
     <div class="tabpanel" id="tab-json" hidden>
-      <label>JSON 붙여넣기 — 형식: [{"word":"...", "sentence":"...(짧은 예문)", "sentenceLong":"...(긴 예문)", "meaning":"...(한국어 뜻)", "emoji":"..."}]</label>
-      <textarea id="json-input" placeholder='[{"word":"beautiful","sentence":"It looks beautiful.","sentenceLong":"The sunset over the hills looked absolutely beautiful this evening.","meaning":"아름다운","emoji":"🌅"}]'></textarea>
+      <label>JSON 붙여넣기 — 형식: [{"word":"...", "sentence":"...(짧은 예문)", "sentenceLong":"...(긴 예문)", "meaning":"...(단어 뜻)", "sentenceMeaning":"...(짧은 예문 번역)", "sentenceLongMeaning":"...(긴 예문 번역)", "emoji":"..."}]</label>
+      <textarea id="json-input" placeholder='[{"word":"beautiful","sentence":"It looks beautiful.","sentenceLong":"The sunset over the hills looked absolutely beautiful this evening.","meaning":"아름다운","sentenceMeaning":"아름다워 보여요.","sentenceLongMeaning":"오늘 저녁 언덕 너머 노을이 정말 아름다웠어요.","emoji":"🌅"}]'></textarea>
       <div class="modal-footer" style="justify-content:flex-start; margin-top:10px;">
         <button id="btn-json-load">표로 불러오기</button>
       </div>
@@ -286,7 +303,11 @@
       <button id="btn-export-set">⬇ JSON 내보내기</button>
       <button class="danger" id="btn-delete-set">삭제</button>
     </div>
-    <p class="status-line">각 카드의 버튼으로 단어 / 짧은 예문 / 긴 예문 발음을 들을 수 있습니다.</p>
+    <div class="now-playing">
+      <div class="now-playing-track"><span id="now-playing-text">카드를 눌러 발음을 들어보세요</span></div>
+      <button class="now-playing-btn" id="now-playing-meaning-btn" hidden>🇰🇷 뜻 보기</button>
+    </div>
+    <div class="now-playing-meaning" id="now-playing-meaning" hidden></div>
     <div class="word-grid" id="word-grid"></div>
   </section>
 
@@ -508,7 +529,7 @@
   $("#btn-new-set").addEventListener("click", () => openCreate(null));
 
   // ---------- Create / Edit ----------
-  const DEFAULT_AI_PROMPT = "You are an English teacher for elementary school students (age 7-12). For each given word, write TWO simple example sentences using vocabulary and topics appropriate for young children (family, school, animals, food, play, everyday routines) and American English spelling/usage. Avoid complex, abstract, or scary/mature vocabulary. 'sentence' must be a very short, simple sentence (3-6 words), and 'sentenceLong' must be a slightly longer but still simple sentence (8-14 words) using the same word. Also provide 'meaning': the word's Korean meaning as a short, simple Korean word or phrase (a native Korean elementary student would understand it) — this is a secondary aid, not the main focus. Also pick ONE emoji that best represents the word. Respond only with the requested JSON.";
+  const DEFAULT_AI_PROMPT = "You are an English teacher for elementary school students (age 7-12). For each given word, write TWO simple example sentences using vocabulary and topics appropriate for young children (family, school, animals, food, play, everyday routines) and American English spelling/usage. Avoid complex, abstract, or scary/mature vocabulary. 'sentence' must be a very short, simple sentence (3-6 words), and 'sentenceLong' must be a slightly longer but still simple sentence (8-14 words) using the same word. Also provide 'meaning': the word's Korean meaning as a short, simple Korean word or phrase (a native Korean elementary student would understand it). Also provide 'sentenceMeaning': a short, natural Korean translation of the 'sentence' value, and 'sentenceLongMeaning': a short, natural Korean translation of the 'sentenceLong' value. These translations are a secondary aid, not the main focus. Also pick ONE emoji that best represents the word. Respond only with the requested JSON.";
 
   function openCreate(setId) {
     state.editingSetId = setId;
@@ -559,6 +580,8 @@
       if (data.sentence) existing.sentence = data.sentence;
       if (data.sentenceLong) existing.sentenceLong = data.sentenceLong;
       if (data.meaning) existing.meaning = data.meaning;
+      if (data.sentenceMeaning) existing.sentenceMeaning = data.sentenceMeaning;
+      if (data.sentenceLongMeaning) existing.sentenceLongMeaning = data.sentenceLongMeaning;
       if (data.emoji) existing.emoji = data.emoji;
       if (data.image) existing.image = data.image;
     } else {
@@ -568,6 +591,8 @@
         sentence: data.sentence || "",
         sentenceLong: data.sentenceLong || "",
         meaning: data.meaning || "",
+        sentenceMeaning: data.sentenceMeaning || "",
+        sentenceLongMeaning: data.sentenceLongMeaning || "",
         emoji: data.emoji || "🔤",
         image: data.image || ""
       });
@@ -594,6 +619,8 @@
           sentence: String(item.sentence || ""),
           sentenceLong: String(item.sentenceLong || ""),
           meaning: String(item.meaning || ""),
+          sentenceMeaning: String(item.sentenceMeaning || ""),
+          sentenceLongMeaning: String(item.sentenceLongMeaning || ""),
           emoji: String(item.emoji || "")
         });
       });
@@ -632,9 +659,11 @@
                 sentence: { type: "string" },
                 sentenceLong: { type: "string" },
                 meaning: { type: "string" },
+                sentenceMeaning: { type: "string" },
+                sentenceLongMeaning: { type: "string" },
                 emoji: { type: "string" }
               },
-              required: ["word", "sentence", "sentenceLong", "meaning", "emoji"]
+              required: ["word", "sentence", "sentenceLong", "meaning", "sentenceMeaning", "sentenceLongMeaning", "emoji"]
             }
           }
         },
@@ -678,6 +707,8 @@
           sentence: (v && v.sentence) || "",
           sentenceLong: (v && v.sentenceLong) || "",
           meaning: (v && v.meaning) || "",
+          sentenceMeaning: (v && v.sentenceMeaning) || "",
+          sentenceLongMeaning: (v && v.sentenceLongMeaning) || "",
           emoji: (v && v.emoji) || ""
         }));
       }
@@ -687,6 +718,8 @@
           sentence: String(item.sentence || ""),
           sentenceLong: String(item.sentenceLong || ""),
           meaning: String(item.meaning || ""),
+          sentenceMeaning: String(item.sentenceMeaning || ""),
+          sentenceLongMeaning: String(item.sentenceLongMeaning || ""),
           emoji: String(item.emoji || "")
         });
       });
@@ -744,7 +777,7 @@
   }
 
   $("#btn-add-row").addEventListener("click", () => {
-    state.rows.push({ id: uid(), word: "", sentence: "", sentenceLong: "", meaning: "", emoji: "🔤", image: "" });
+    state.rows.push({ id: uid(), word: "", sentence: "", sentenceLong: "", meaning: "", sentenceMeaning: "", sentenceLongMeaning: "", emoji: "🔤", image: "" });
     renderEditorRows();
   });
 
@@ -840,10 +873,54 @@
       });
   }
 
+  // ---- Now-playing bar (shows the original text of whatever was last
+  // played, since audio-only playback leaves no script to read along to) ----
+  function resetNowPlaying() {
+    const span = $("#now-playing-text");
+    span.textContent = "카드를 눌러 발음을 들어보세요";
+    span.classList.remove("marquee");
+    span.style.removeProperty("--marquee-dist");
+    span.style.animationDuration = "";
+    state.nowPlayingMeaning = "";
+    $("#now-playing-meaning-btn").hidden = true;
+    $("#now-playing-meaning").hidden = true;
+    $("#now-playing-meaning").textContent = "";
+  }
+
+  function showNowPlaying(text, meaning) {
+    const span = $("#now-playing-text");
+    span.textContent = text;
+    span.classList.remove("marquee");
+    span.style.removeProperty("--marquee-dist");
+    span.style.animationDuration = "";
+    state.nowPlayingMeaning = meaning || "";
+    $("#now-playing-meaning-btn").hidden = !meaning;
+    $("#now-playing-meaning").hidden = true;
+    $("#now-playing-meaning").textContent = "";
+    requestAnimationFrame(() => {
+      const track = span.parentElement;
+      const overflow = span.scrollWidth - track.clientWidth;
+      if (overflow > 4) {
+        const dist = -(overflow + 16);
+        const duration = Math.min(14, Math.max(3.5, Math.abs(dist) / 45));
+        span.style.setProperty("--marquee-dist", dist + "px");
+        span.style.animationDuration = duration + "s";
+        span.classList.add("marquee");
+      }
+    });
+  }
+
+  $("#now-playing-meaning-btn").addEventListener("click", () => {
+    const el = $("#now-playing-meaning");
+    el.hidden = !el.hidden;
+    el.textContent = el.hidden ? "" : state.nowPlayingMeaning;
+  });
+
   function renderPractice() {
     const s = getSetById(state.activeSetId);
     if (!s) { renderHome(); showView("home"); return; }
     $("#header-title").textContent = "🇺🇸 " + s.name;
+    resetNowPlaying();
     const grid = $("#word-grid");
     grid.innerHTML = "";
     s.words.forEach(w => {
@@ -852,25 +929,24 @@
       card.innerHTML = `
         ${w.image ? `<img class="visual" src="${w.image}">` : `<div class="visual">${escapeHtml(w.emoji || "🔤")}</div>`}
         <div class="word-text">${escapeHtml(w.word)}</div>
-        <div class="meaning-text" hidden></div>
         <div class="card-actions">
           <button class="card-btn" data-kind="word">🔊 단어</button>
           <button class="card-btn" data-kind="short">📝 짧은 예문</button>
           <button class="card-btn" data-kind="long">📖 긴 예문</button>
-          ${w.meaning ? `<button class="card-btn" data-kind="meaning">🇰🇷 뜻</button>` : ""}
         </div>
       `;
-      card.querySelector('[data-kind="word"]').addEventListener("click", () => speak(w.word));
-      card.querySelector('[data-kind="short"]').addEventListener("click", () => speak(w.sentence || w.word));
-      card.querySelector('[data-kind="long"]').addEventListener("click", () => speak(w.sentenceLong || w.sentence || w.word));
-      const meaningBtn = card.querySelector('[data-kind="meaning"]');
-      if (meaningBtn) {
-        meaningBtn.addEventListener("click", () => {
-          const el = card.querySelector(".meaning-text");
-          el.hidden = !el.hidden;
-          el.textContent = el.hidden ? "" : w.meaning;
-        });
-      }
+      card.querySelector('[data-kind="word"]').addEventListener("click", () => {
+        showNowPlaying(w.word, w.meaning);
+        speak(w.word);
+      });
+      card.querySelector('[data-kind="short"]').addEventListener("click", () => {
+        showNowPlaying(w.sentence || w.word, w.sentenceMeaning || w.meaning);
+        speak(w.sentence || w.word);
+      });
+      card.querySelector('[data-kind="long"]').addEventListener("click", () => {
+        showNowPlaying(w.sentenceLong || w.sentence || w.word, w.sentenceLongMeaning || w.meaning);
+        speak(w.sentenceLong || w.sentence || w.word);
+      });
       grid.appendChild(card);
     });
   }
@@ -890,7 +966,15 @@
   $("#btn-export-set").addEventListener("click", () => {
     const s = getSetById(state.activeSetId);
     if (!s) return;
-    const payload = s.words.map(w => ({ word: w.word, sentence: w.sentence, sentenceLong: w.sentenceLong || "", meaning: w.meaning || "", emoji: w.emoji }));
+    const payload = s.words.map(w => ({
+      word: w.word,
+      sentence: w.sentence,
+      sentenceLong: w.sentenceLong || "",
+      meaning: w.meaning || "",
+      sentenceMeaning: w.sentenceMeaning || "",
+      sentenceLongMeaning: w.sentenceLongMeaning || "",
+      emoji: w.emoji
+    }));
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -1331,18 +1415,18 @@
 
   // ---------- Init ----------
   const DEFAULT_SET_WORDS = [
-    { word: "ask", sentence: "I ask a question.", sentenceLong: "I ask my teacher a question in class.", meaning: "물어보다", emoji: "❓" },
-    { word: "an", sentence: "I eat an apple.", sentenceLong: "I eat an apple every day after school.", meaning: "하나의 (모음 앞)", emoji: "🍎" },
-    { word: "over", sentence: "It is over there.", sentenceLong: "The cat jumps over the little fence in the yard.", meaning: "위로, 건너서", emoji: "🐱" },
-    { word: "just", sentence: "I just woke up.", sentenceLong: "I just finished my homework before dinner tonight.", meaning: "방금, 그냥", emoji: "⏰" },
-    { word: "from", sentence: "I am from Korea.", sentenceLong: "My friend is from a small town near the sea.", meaning: "~로부터", emoji: "🌍" },
-    { word: "any", sentence: "I don't have any.", sentenceLong: "I don't have any candy left in my bag.", meaning: "어떤, 아무", emoji: "🍬" },
-    { word: "how", sentence: "How are you today?", sentenceLong: "How do you make a sandwich for lunch?", meaning: "어떻게", emoji: "🥪" },
-    { word: "know", sentence: "I know the answer.", sentenceLong: "I know how to ride my new bike.", meaning: "알다", emoji: "🚲" },
-    { word: "put", sentence: "Put the toy away.", sentenceLong: "Please put your shoes by the front door.", meaning: "놓다, 두다", emoji: "👟" },
-    { word: "take", sentence: "Take my hand, please.", sentenceLong: "I take my dog for a walk every morning.", meaning: "가지다, 데려가다", emoji: "🐕" },
-    { word: "every", sentence: "I brush every morning.", sentenceLong: "I brush my teeth every morning and night.", meaning: "모든, 매~", emoji: "🦷" },
-    { word: "old", sentence: "My dog is old.", sentenceLong: "My grandpa is very old and very kind.", meaning: "나이든, 오래된", emoji: "👴" }
+    { word: "ask", sentence: "I ask a question.", sentenceLong: "I ask my teacher a question in class.", meaning: "물어보다", sentenceMeaning: "저는 질문을 해요.", sentenceLongMeaning: "저는 수업 시간에 선생님께 질문을 해요.", emoji: "❓" },
+    { word: "an", sentence: "I eat an apple.", sentenceLong: "I eat an apple every day after school.", meaning: "하나의 (모음 앞)", sentenceMeaning: "저는 사과 하나를 먹어요.", sentenceLongMeaning: "저는 방과 후에 매일 사과 하나를 먹어요.", emoji: "🍎" },
+    { word: "over", sentence: "It is over there.", sentenceLong: "The cat jumps over the little fence in the yard.", meaning: "위로, 건너서", sentenceMeaning: "그건 저기에 있어요.", sentenceLongMeaning: "고양이가 마당의 작은 울타리를 뛰어넘어요.", emoji: "🐱" },
+    { word: "just", sentence: "I just woke up.", sentenceLong: "I just finished my homework before dinner tonight.", meaning: "방금, 그냥", sentenceMeaning: "저는 방금 일어났어요.", sentenceLongMeaning: "저는 오늘 저녁 식사 전에 숙제를 막 끝냈어요.", emoji: "⏰" },
+    { word: "from", sentence: "I am from Korea.", sentenceLong: "My friend is from a small town near the sea.", meaning: "~로부터", sentenceMeaning: "저는 한국에서 왔어요.", sentenceLongMeaning: "제 친구는 바다 근처의 작은 마을에서 왔어요.", emoji: "🌍" },
+    { word: "any", sentence: "I don't have any.", sentenceLong: "I don't have any candy left in my bag.", meaning: "어떤, 아무", sentenceMeaning: "저는 하나도 없어요.", sentenceLongMeaning: "제 가방엔 사탕이 하나도 안 남았어요.", emoji: "🍬" },
+    { word: "how", sentence: "How are you today?", sentenceLong: "How do you make a sandwich for lunch?", meaning: "어떻게", sentenceMeaning: "오늘 기분이 어때요?", sentenceLongMeaning: "점심으로 샌드위치를 어떻게 만들어요?", emoji: "🥪" },
+    { word: "know", sentence: "I know the answer.", sentenceLong: "I know how to ride my new bike.", meaning: "알다", sentenceMeaning: "저는 답을 알아요.", sentenceLongMeaning: "저는 새 자전거 타는 법을 알아요.", emoji: "🚲" },
+    { word: "put", sentence: "Put the toy away.", sentenceLong: "Please put your shoes by the front door.", meaning: "놓다, 두다", sentenceMeaning: "장난감을 치워 주세요.", sentenceLongMeaning: "신발을 현관문 옆에 놓아 주세요.", emoji: "👟" },
+    { word: "take", sentence: "Take my hand, please.", sentenceLong: "I take my dog for a walk every morning.", meaning: "가지다, 데려가다", sentenceMeaning: "제 손을 잡아 주세요.", sentenceLongMeaning: "저는 매일 아침 강아지를 산책시켜요.", emoji: "🐕" },
+    { word: "every", sentence: "I brush every morning.", sentenceLong: "I brush my teeth every morning and night.", meaning: "모든, 매~", sentenceMeaning: "저는 매일 아침 양치해요.", sentenceLongMeaning: "저는 아침저녁으로 매일 양치해요.", emoji: "🦷" },
+    { word: "old", sentence: "My dog is old.", sentenceLong: "My grandpa is very old and very kind.", meaning: "나이든, 오래된", sentenceMeaning: "제 강아지는 나이가 많아요.", sentenceLongMeaning: "저희 할아버지는 나이가 많고 아주 친절하세요.", emoji: "👴" }
   ];
   function seedDefaultSetIfEmpty() {
     if (loadSets().length > 0) return;
@@ -1350,7 +1434,11 @@
     saveSets([{
       id: uid(),
       name: "테스트 세트",
-      words: DEFAULT_SET_WORDS.map(w => ({ id: uid(), word: w.word, sentence: w.sentence, sentenceLong: w.sentenceLong, meaning: w.meaning, emoji: w.emoji, image: "" })),
+      words: DEFAULT_SET_WORDS.map(w => ({
+        id: uid(), word: w.word, sentence: w.sentence, sentenceLong: w.sentenceLong,
+        meaning: w.meaning, sentenceMeaning: w.sentenceMeaning, sentenceLongMeaning: w.sentenceLongMeaning,
+        emoji: w.emoji, image: ""
+      })),
       createdAt: now,
       updatedAt: now
     }]);

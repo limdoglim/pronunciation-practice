@@ -52,8 +52,10 @@ python3 server.py
 ## JSON 형식
 
 ```json
-[{"word": "beautiful", "sentence": "It looks beautiful.", "sentenceLong": "The sunset over the hills looked absolutely beautiful this evening.", "emoji": "🌅"}]
+[{"word": "beautiful", "sentence": "It looks beautiful.", "sentenceLong": "The sunset over the hills looked absolutely beautiful this evening.", "meaning": "아름다운", "sentenceMeaning": "아름다워 보여요.", "sentenceLongMeaning": "오늘 저녁 언덕 너머 노을이 정말 아름다웠어요.", "emoji": "🌅"}]
 ```
+
+`meaning`/`sentenceMeaning`/`sentenceLongMeaning`은 선택 필드(비워도 됨) — 각각 단어/짧은예문/긴예문의 한국어 번역이며, 연습 화면 상단 현황판의 "뜻 보기" 버튼에 쓰인다.
 
 ## 배포 참고
 
