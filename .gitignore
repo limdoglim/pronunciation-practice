@@ -2,3 +2,5 @@
 tts_cache/
 .venv/
 .playwright-mcp/
+sets_data.json
+__pycache__/

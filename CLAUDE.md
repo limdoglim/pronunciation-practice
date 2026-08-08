@@ -5,8 +5,12 @@
 ## 구조
 
 - `index.html` — 앱 전체 (HTML/CSS/JS 한 파일, 빌드 없음)
-- `server.py` — 백엔드. 정적 파일 서빙 + `POST /tts` (TTS)만 처리. `/api/*`는 처리하지 않음 —
-  AI 예문 생성(`/api/chat`)은 외부 리버스 프록시가 로컬 Ollama로 라우팅해준다고 가정함.
+- `server.py` — 백엔드. 정적 파일 서빙 + `POST /tts`(TTS) + `GET/POST /sets`, `DELETE /sets/<id>`(연습
+  세트 저장소)만 처리. `/api/*`는 처리하지 않음 — AI 예문 생성(`/api/chat`)은 외부 리버스 프록시가
+  로컬 Ollama로 라우팅해준다고 가정함. `/sets`는 `/api/*`가 아니므로 그 프록시 라우팅과 충돌 없음.
+- `sets_data.json` — 연습 세트 저장소(`{id: set}` 딕셔너리). gitignore됨. 클라이언트는 localStorage를
+  즉시반응용 캐시로 쓰면서 이 파일과 동기화(`updatedAt` 비교로 diff 후 push/delete) — 여러 계정이
+  같은 배포에 로그인해도 세트를 공유해서 봄.
 - `tts_cache/` — `(text, voice, accent)` 해시 기준 WAV 캐시. gitignore됨.
 - `.venv/` — Kokoro(로컬 TTS 폴백)용 가상환경. gitignore됨. Python 3.11~3.12 권장
   (torch/spacy 계열이 최신 Python wheel을 늦게 지원함).
@@ -15,7 +19,9 @@
 
 1. `POST /tts` → 캐시 확인 (`tts_cache/<sha256(voice|accent|text)>.wav`) → 있으면 즉시 반환
 2. 없으면 `GEMINI_API_KEY` 있을 때 Gemini 2.5 Flash TTS 시도
-3. 실패(키 없음/429/네트워크 오류 등)하면 로컬 Kokoro-82M으로 폴백 (`kokoro_tts()`)
+3. 실패(키 없음/429/네트워크 오류 등)하면 로컬 Kokoro-82M으로 폴백 (`kokoro_tts()`) — Kokoro 자체
+   보이스팩에 Gemini 보이스명과 겹치는 이름이 있어(`KOKORO_VOICE_BY_NAME`) 폴백 중에도 보이스 선택이
+   실제로 다르게 들리도록 매핑함 (안 겹치는 이름은 accent별 기본 보이스로 대체)
 4. 결과를 캐시에 저장 후 응답 (`X-TTS-Engine` 헤더로 어느 엔진 썼는지 확인 가능)
 
 ## 지켜야 할 것

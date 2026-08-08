@@ -6,6 +6,7 @@ import json
 import os
 import struct
 import sys
+import threading
 import urllib.error
 import urllib.request
 
@@ -13,6 +14,8 @@ PORT = 18081
 API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent"
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tts_cache")
+SETS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sets_data.json")
+_sets_lock = threading.Lock()
 
 ACCENT_PROMPTS = {
     "en-GB": "Read the following aloud in a natural British English accent, clearly and at a normal pace",
@@ -22,6 +25,18 @@ ACCENT_PROMPTS = {
 KOKORO_VOICES = {
     "en-GB": {"lang": "b", "voice": "bf_emma"},
     "en-US": {"lang": "a", "voice": "af_heart"},
+}
+# Kokoro's own voicepack happens to share several names with the Gemini
+# voice list this app exposes in Settings — map to those so a voice choice
+# still audibly matters when Gemini is unavailable and Kokoro is used
+# instead, rather than every selection sounding identical.
+KOKORO_VOICE_BY_NAME = {
+    "Kore":   {"en-US": "af_kore",    "en-GB": "bf_isabella"},
+    "Puck":   {"en-US": "am_puck",    "en-GB": "bm_george"},
+    "Charon": {"en-US": "am_michael", "en-GB": "bm_lewis"},
+    "Fenrir": {"en-US": "am_fenrir",  "en-GB": "bm_daniel"},
+    "Aoede":  {"en-US": "af_aoede",   "en-GB": "bf_emma"},
+    "Leda":   {"en-US": "af_nicole",  "en-GB": "bf_alice"},
 }
 _kokoro_pipelines = {}
 
@@ -39,7 +54,14 @@ def pcm_to_wav(pcm_bytes, sample_rate=24000, channels=1, sample_width=2):
 
 
 def gemini_tts(text, voice, accent):
-    prompt = f"{ACCENT_PROMPTS.get(accent, ACCENT_PROMPTS['en-US'])}: {text}"
+    style = ACCENT_PROMPTS.get(accent, ACCENT_PROMPTS["en-US"])
+    if " " not in text.strip():
+        # A single word with no sentence context is where LLM-driven TTS is
+        # most prone to misreading silent letters (e.g. the "k" in "know")
+        # — nudge it toward the standard dictionary pronunciation.
+        prompt = f"{style}, using its normal standard English pronunciation (respect silent letters): {text}"
+    else:
+        prompt = f"{style}: {text}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
@@ -59,23 +81,76 @@ def gemini_tts(text, voice, accent):
     return pcm_to_wav(base64.b64decode(b64))
 
 
-def kokoro_tts(text, accent):
+def kokoro_tts(text, voice, accent):
     from kokoro import KPipeline
 
-    cfg = KOKORO_VOICES.get(accent, KOKORO_VOICES["en-US"])
-    pipeline = _kokoro_pipelines.get(cfg["lang"])
+    default = KOKORO_VOICES.get(accent, KOKORO_VOICES["en-US"])
+    lang = default["lang"]
+    voice_name = KOKORO_VOICE_BY_NAME.get(voice, {}).get(accent, default["voice"])
+    pipeline = _kokoro_pipelines.get(lang)
     if pipeline is None:
-        pipeline = KPipeline(lang_code=cfg["lang"])
-        _kokoro_pipelines[cfg["lang"]] = pipeline
+        pipeline = KPipeline(lang_code=lang)
+        _kokoro_pipelines[lang] = pipeline
 
     chunks = []
-    for r in pipeline(text, voice=cfg["voice"], speed=0.92):
+    for r in pipeline(text, voice=voice_name, speed=0.92):
         chunks.append((r.audio.numpy() * 32767).astype("int16").tobytes())
     return pcm_to_wav(b"".join(chunks))
 
 
+def load_sets_file():
+    if not os.path.exists(SETS_FILE):
+        return {}
+    with open(SETS_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_sets_file(data):
+    tmp_path = SETS_FILE + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
+    os.replace(tmp_path, SETS_FILE)
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/sets":
+            with _sets_lock:
+                data = load_sets_file()
+            self._respond_json(list(data.values()))
+            return
+        super().do_GET()
+
+    def do_DELETE(self):
+        if self.path.startswith("/sets/"):
+            set_id = self.path[len("/sets/"):]
+            with _sets_lock:
+                data = load_sets_file()
+                data.pop(set_id, None)
+                save_sets_file(data)
+            self.send_response(204)
+            self.end_headers()
+            return
+        self.send_error(404)
+
     def do_POST(self):
+        if self.path == "/sets":
+            length = int(self.headers.get("Content-Length", 0))
+            try:
+                item = json.loads(self.rfile.read(length) or b"{}")
+            except json.JSONDecodeError:
+                self.send_error(400)
+                return
+            if not item.get("id"):
+                self.send_error(400)
+                return
+            with _sets_lock:
+                data = load_sets_file()
+                data[item["id"]] = item
+                save_sets_file(data)
+            self._respond_json(item)
+            return
+
         if self.path != "/tts":
             self.send_error(404)
             return
@@ -113,7 +188,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
         if wav is None:
             try:
-                wav = kokoro_tts(text, accent)
+                wav = kokoro_tts(text, voice, accent)
                 engine = "kokoro"
             except Exception as e:
                 print(f"[tts] Kokoro failed too: {e}", file=sys.stderr)
@@ -139,6 +214,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.send_header("X-TTS-Engine", engine)
         self.end_headers()
         self.wfile.write(wav)
+
+    def _respond_json(self, obj):
+        body = json.dumps(obj, ensure_ascii=False).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def log_message(self, format, *args):
         pass

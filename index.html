@@ -446,11 +446,65 @@
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
+  // Sets are cached in localStorage for instant sync reads everywhere in
+  // the UI, and mirrored to the server (`/sets`) so multiple accounts
+  // logged into the same deployment share the same sets. lastSyncedSets
+  // is the last snapshot known to match the server, used to diff what
+  // changed (by id/updatedAt) so only touched sets are pushed/deleted.
+  let lastSyncedSets = null;
+
   function loadSets() {
     try { return JSON.parse(localStorage.getItem(LS_SETS)) || []; }
     catch (e) { return []; }
   }
-  function saveSets(sets) { localStorage.setItem(LS_SETS, JSON.stringify(sets)); }
+  function saveSets(sets, opts) {
+    localStorage.setItem(LS_SETS, JSON.stringify(sets));
+    if (opts && opts.skipSync) {
+      lastSyncedSets = sets.map(s => ({ ...s }));
+      return;
+    }
+    syncSetsToServer(sets);
+  }
+  function syncSetsToServer(sets) {
+    const prev = lastSyncedSets || [];
+    const nextIds = new Set(sets.map(s => s.id));
+    sets.forEach(s => {
+      const old = prev.find(p => p.id === s.id);
+      if (!old || old.updatedAt !== s.updatedAt) {
+        fetch("/sets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(s)
+        }).catch(err => console.warn("세트 서버 저장 실패:", err));
+      }
+    });
+    prev.forEach(p => {
+      if (!nextIds.has(p.id)) {
+        fetch("/sets/" + encodeURIComponent(p.id), { method: "DELETE" })
+          .catch(err => console.warn("세트 서버 삭제 실패:", err));
+      }
+    });
+    lastSyncedSets = sets.map(s => ({ ...s }));
+  }
+  async function bootstrapSets() {
+    let serverOk = false;
+    try {
+      const res = await fetch("/sets");
+      if (res.ok) {
+        serverOk = true;
+        const serverSets = await res.json();
+        if (Array.isArray(serverSets) && serverSets.length > 0) {
+          saveSets(serverSets, { skipSync: true });
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("서버 세트 동기화 실패, 로컬 데이터로 계속합니다:", e);
+    }
+    seedDefaultSetIfEmpty();
+    if (serverOk) syncSetsToServer(loadSets());
+    else lastSyncedSets = loadSets().map(s => ({ ...s }));
+  }
   function loadSettings() {
     try { return JSON.parse(localStorage.getItem(LS_SETTINGS)) || {}; }
     catch (e) { return {}; }
@@ -1443,10 +1497,11 @@
       updatedAt: now
     }]);
   }
-  seedDefaultSetIfEmpty();
-
-  renderHome();
-  showView("home");
+  (async () => {
+    await bootstrapSets();
+    renderHome();
+    showView("home");
+  })();
 })();
 </script>
 </body>
