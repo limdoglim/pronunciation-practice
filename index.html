@@ -186,11 +186,13 @@
   .match-grid { display: grid; gap: 10px; margin-top: 16px; }
   .match-card {
     aspect-ratio: 1 / 1; border-radius: 12px; border: 1px solid var(--border);
-    background: var(--card); display: flex; align-items: center; justify-content: center;
-    font-size: 1.6rem; cursor: pointer; user-select: none; padding: 4px; text-align: center;
+    background: var(--card); display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px; font-size: 1.6rem; cursor: pointer; user-select: none; padding: 4px; text-align: center;
     transition: transform 0.15s ease; overflow: hidden;
   }
-  .match-card.word-face { font-size: 0.85rem; font-weight: 600; }
+  .match-card .m-emoji { font-size: 1.5rem; line-height: 1; }
+  .match-card .m-emoji img { width: 100%; max-height: 60%; object-fit: cover; border-radius: 6px; }
+  .match-card .m-word { font-size: 0.62rem; font-weight: 600; }
   .match-card.hidden-face { background: var(--accent); color: var(--accent-text); font-size: 1.4rem; }
   .match-card.matched { background: #2a6b3e; border-color: #2a6b3e; color: #fff; cursor: default; }
   .match-card:active:not(.matched) { transform: scale(0.95); }
@@ -1166,8 +1168,9 @@
     const words = shuffle(s.words).slice(0, Math.min(MATCH_MAX_PAIRS, s.words.length));
     const cards = [];
     words.forEach(w => {
-      cards.push({ id: uid(), wordId: w.id, type: "visual", content: w.emoji || "🔤", image: w.image || "", word: w.word, flippedUp: false, matched: false });
-      cards.push({ id: uid(), wordId: w.id, type: "word", content: w.word, image: "", word: w.word, flippedUp: false, matched: false });
+      for (let i = 0; i < 2; i++) {
+        cards.push({ id: uid(), wordId: w.id, word: w.word, emoji: w.emoji || "🔤", image: w.image || "", flippedUp: false, matched: false });
+      }
     });
     match = {
       setId: s.id,
@@ -1193,11 +1196,12 @@
     grid.style.gridTemplateColumns = `repeat(${match.cols}, 1fr)`;
     match.cards.forEach(c => {
       const el = document.createElement("div");
-      el.className = "match-card" + (c.matched ? " matched" : c.flippedUp ? " word-face" : " hidden-face");
+      el.dataset.wordId = c.wordId;
+      el.className = "match-card" + (c.matched ? " matched" : c.flippedUp ? "" : " hidden-face");
       if (c.matched || c.flippedUp) {
-        el.innerHTML = c.image
-          ? `<img src="${c.image}" style="width:100%;height:100%;object-fit:cover;">`
-          : escapeHtml(c.content);
+        el.innerHTML =
+          `<div class="m-emoji">${c.image ? `<img src="${c.image}">` : escapeHtml(c.emoji)}</div>` +
+          `<div class="m-word">${escapeHtml(c.word)}</div>`;
       } else {
         el.textContent = "❔";
       }
@@ -1212,7 +1216,7 @@
     card.flippedUp = true;
     match.flipped.push(card);
     renderMatch();
-    if (card.type === "word") speak(card.word);
+    speak(card.word);
 
     if (match.flipped.length === 2) {
       match.moves++;
