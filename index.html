@@ -182,6 +182,19 @@
     100% { transform: scale(1); }
   }
 
+  /* Matching game */
+  .match-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; margin-top: 16px; }
+  .match-card {
+    aspect-ratio: 1 / 1; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--card); display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem; cursor: pointer; user-select: none; padding: 4px; text-align: center;
+    transition: transform 0.15s ease; overflow: hidden;
+  }
+  .match-card.word-face { font-size: 0.85rem; font-weight: 600; }
+  .match-card.hidden-face { background: var(--accent); color: var(--accent-text); font-size: 1.4rem; }
+  .match-card.matched { background: #2a6b3e; border-color: #2a6b3e; color: #fff; cursor: default; }
+  .match-card:active:not(.matched) { transform: scale(0.95); }
+
   .confetti-piece {
     position: fixed; width: 8px; height: 8px; border-radius: 2px;
     pointer-events: none; z-index: 999; top: 0; left: 0;
@@ -266,6 +279,7 @@
   <section id="view-practice" hidden>
     <div class="top-actions">
       <button class="primary" id="btn-start-quiz">🎮 듣고 맞추기</button>
+      <button id="btn-start-match">🃏 짝맞추기</button>
       <button id="btn-edit-set">✏️ 편집</button>
       <button id="btn-export-set">⬇ JSON 내보내기</button>
       <button class="danger" id="btn-delete-set">삭제</button>
@@ -297,6 +311,27 @@
       <div class="modal-footer" style="justify-content:center;">
         <button id="btn-quiz-back-practice">연습으로</button>
         <button class="primary" id="btn-quiz-retry">🔁 다시하기</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-match" hidden>
+    <div id="match-play">
+      <div class="quiz-top">
+        <div class="quiz-progress" id="match-progress"></div>
+        <div class="quiz-score" id="match-moves"></div>
+      </div>
+      <p class="status-line">카드 두 개를 뒤집어 같은 단어끼리 짝을 맞춰보세요.</p>
+      <div class="match-grid" id="match-grid"></div>
+      <div class="modal-footer">
+        <button id="btn-match-exit">그만하기</button>
+      </div>
+    </div>
+    <div id="match-result" hidden>
+      <div class="empty-hint" id="match-result-text"></div>
+      <div class="modal-footer" style="justify-content:center;">
+        <button id="btn-match-back-practice">연습으로</button>
+        <button class="primary" id="btn-match-retry">🔁 다시하기</button>
       </div>
     </div>
   </section>
@@ -403,16 +438,18 @@
     $("#view-create").hidden = name !== "create";
     $("#view-practice").hidden = name !== "practice";
     $("#view-quiz").hidden = name !== "quiz";
+    $("#view-match").hidden = name !== "match";
     $("#btn-back").hidden = name === "home";
     $("#header-title").textContent = name === "home" ? "🇺🇸 발음 연습"
       : name === "create" ? "🇺🇸 세트 만들기"
       : name === "quiz" ? "🇺🇸 " + (getSetById(state.activeSetId)?.name || "") + " · 게임"
+      : name === "match" ? "🇺🇸 " + (getSetById(state.activeSetId)?.name || "") + " · 짝맞추기"
       : "🇺🇸 " + (getSetById(state.activeSetId)?.name || "");
   }
 
   $("#btn-back").addEventListener("click", () => {
     stopSpeaking();
-    if (state.view === "quiz") {
+    if (state.view === "quiz" || state.view === "match") {
       renderPractice();
       showView("practice");
       return;
@@ -1094,6 +1131,140 @@
     showView("practice");
   });
   $("#btn-quiz-retry").addEventListener("click", () => startQuiz(quiz.difficulty, quiz.speedMode));
+
+  // ---------- Matching game ----------
+  let match = null; // { setId, cards:[{id,wordId,type,content,image,word,flippedUp,matched}], flipped, moves, matchedPairs, totalPairs, locked }
+  const LS_MATCH_BEST = "pronunciation_match_best_v1";
+  const MATCH_MAX_PAIRS = 8;
+
+  function loadMatchBest() {
+    try { return JSON.parse(localStorage.getItem(LS_MATCH_BEST)) || {}; }
+    catch (e) { return {}; }
+  }
+  function saveMatchBest(b) { localStorage.setItem(LS_MATCH_BEST, JSON.stringify(b)); }
+
+  $("#btn-start-match").addEventListener("click", () => {
+    const s = getSetById(state.activeSetId);
+    if (!s || s.words.length < 2) {
+      alert("짝맞추기를 하려면 단어가 2개 이상 필요합니다.");
+      return;
+    }
+    startMatch();
+  });
+
+  function startMatch() {
+    const s = getSetById(state.activeSetId);
+    const words = shuffle(s.words).slice(0, Math.min(MATCH_MAX_PAIRS, s.words.length));
+    const cards = [];
+    words.forEach(w => {
+      cards.push({ id: uid(), wordId: w.id, type: "visual", content: w.emoji || "🔤", image: w.image || "", word: w.word, flippedUp: false, matched: false });
+      cards.push({ id: uid(), wordId: w.id, type: "word", content: w.word, image: "", word: w.word, flippedUp: false, matched: false });
+    });
+    match = {
+      setId: s.id,
+      cards: shuffle(cards),
+      flipped: [],
+      moves: 0,
+      matchedPairs: 0,
+      totalPairs: words.length,
+      locked: false
+    };
+    $("#match-result").hidden = true;
+    $("#match-play").hidden = false;
+    showView("match");
+    renderMatch();
+  }
+
+  function renderMatch() {
+    $("#match-progress").textContent = `짝: ${match.matchedPairs} / ${match.totalPairs}`;
+    $("#match-moves").textContent = `시도: ${match.moves}`;
+    const grid = $("#match-grid");
+    grid.innerHTML = "";
+    match.cards.forEach(c => {
+      const el = document.createElement("div");
+      el.className = "match-card" + (c.matched ? " matched" : c.flippedUp ? " word-face" : " hidden-face");
+      if (c.matched || c.flippedUp) {
+        el.innerHTML = c.image
+          ? `<img src="${c.image}" style="width:100%;height:100%;object-fit:cover;">`
+          : escapeHtml(c.content);
+      } else {
+        el.textContent = "❔";
+      }
+      if (!c.matched) el.addEventListener("click", () => flipMatchCard(c));
+      grid.appendChild(el);
+    });
+  }
+
+  function flipMatchCard(card) {
+    if (match.locked || card.matched || card.flippedUp) return;
+    if (match.flipped.length >= 2) return;
+    card.flippedUp = true;
+    match.flipped.push(card);
+    renderMatch();
+    if (card.type === "word") speak(card.word);
+
+    if (match.flipped.length === 2) {
+      match.moves++;
+      const [a, b] = match.flipped;
+      if (a.wordId === b.wordId) {
+        match.locked = true;
+        setTimeout(() => {
+          a.matched = true; b.matched = true;
+          match.matchedPairs++;
+          match.flipped = [];
+          match.locked = false;
+          playCorrectSound();
+          renderMatch();
+          confettiBurst($("#match-grid"));
+          if (match.matchedPairs >= match.totalPairs) finishMatch();
+        }, 350);
+      } else {
+        match.locked = true;
+        playWrongSound();
+        setTimeout(() => {
+          a.flippedUp = false; b.flippedUp = false;
+          match.flipped = [];
+          match.locked = false;
+          renderMatch();
+        }, 700);
+      }
+    }
+  }
+
+  function finishMatch() {
+    stopSpeaking();
+    $("#match-play").hidden = true;
+    $("#match-result").hidden = false;
+
+    const best = loadMatchBest();
+    const key = match.setId + ":" + match.totalPairs;
+    const prevBest = best[key];
+    const isNewBest = !prevBest || match.moves < prevBest.moves;
+    if (isNewBest) {
+      best[key] = { moves: match.moves, pairs: match.totalPairs };
+      saveMatchBest(best);
+    }
+    const bestLine = isNewBest && prevBest
+      ? `🏆 최소시도 경신! (이전 ${prevBest.moves}회)`
+      : isNewBest
+      ? `🏆 첫 기록 등록!`
+      : `최소시도 기록: ${prevBest.moves}회`;
+    $("#match-result-text").innerHTML =
+      `🎉 모두 맞췄어요! 시도 횟수: ${match.moves}회<br>` +
+      `<span style="font-size:0.85rem;">${bestLine}</span>`;
+    if (isNewBest) confettiBurst($("#match-result-text"));
+  }
+
+  $("#btn-match-exit").addEventListener("click", () => {
+    stopSpeaking();
+    renderPractice();
+    showView("practice");
+  });
+  $("#btn-match-back-practice").addEventListener("click", () => {
+    renderPractice();
+    showView("practice");
+  });
+  $("#btn-match-retry").addEventListener("click", () => startMatch());
 
   // ---------- Settings ----------
   $("#btn-settings").addEventListener("click", () => {
