@@ -13,6 +13,8 @@ import urllib.request
 PORT = 18081
 API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent"
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434/api/chat")
+OLLAMA_API_KEY = os.environ.get("OLLAMA_API_KEY", "")
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tts_cache")
 SETS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sets_data.json")
 _sets_lock = threading.Lock()
@@ -112,6 +114,23 @@ def save_sets_file(data):
     os.replace(tmp_path, SETS_FILE)
 
 
+def ollama_chat(body):
+    headers = {"Content-Type": "application/json"}
+    if OLLAMA_API_KEY:
+        headers["Authorization"] = "Bearer " + OLLAMA_API_KEY
+    req = urllib.request.Request(
+        OLLAMA_URL,
+        data=json.dumps(body).encode(),
+        headers=headers,
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            return resp.status, resp.headers.get("Content-Type", "application/json"), resp.read()
+    except urllib.error.HTTPError as e:
+        return e.code, e.headers.get("Content-Type", "application/json"), e.read()
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/sets":
@@ -134,6 +153,21 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.send_error(404)
 
     def do_POST(self):
+        if self.path == "/api/chat":
+            length = int(self.headers.get("Content-Length", 0))
+            try:
+                body = json.loads(self.rfile.read(length) or b"{}")
+            except json.JSONDecodeError:
+                self.send_error(400)
+                return
+            status, content_type, response_body = ollama_chat(body)
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(response_body)))
+            self.end_headers()
+            self.wfile.write(response_body)
+            return
+
         if self.path == "/sets":
             length = int(self.headers.get("Content-Length", 0))
             try:

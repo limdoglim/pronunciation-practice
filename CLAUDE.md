@@ -5,9 +5,9 @@
 ## 구조
 
 - `index.html` — 앱 전체 (HTML/CSS/JS 한 파일, 빌드 없음)
-- `server.py` — 백엔드. 정적 파일 서빙 + `POST /tts`(TTS) + `GET/POST /sets`, `DELETE /sets/<id>`(연습
-  세트 저장소)만 처리. `/api/*`는 처리하지 않음 — AI 예문 생성(`/api/chat`)은 외부 리버스 프록시가
-  로컬 Ollama로 라우팅해준다고 가정함. `/sets`는 `/api/*`가 아니므로 그 프록시 라우팅과 충돌 없음.
+- `server.py` — 백엔드. 정적 파일 서빙 + `POST /tts`(TTS) + `POST /api/chat`(Ollama 중계) +
+  `GET/POST /sets`, `DELETE /sets/<id>`(연습 세트 저장소)를 처리함. 클라이언트가 Ollama API 키를
+  직접 보내지 않도록 AI 호출도 같은 백엔드로 통일함.
 - `sets_data.json` — 연습 세트 저장소(`{id: set}` 딕셔너리). gitignore됨. 클라이언트는 localStorage를
   즉시반응용 캐시로 쓰면서 이 파일과 동기화(`updatedAt` 비교로 diff 후 push/delete) — 여러 계정이
   같은 배포에 로그인해도 세트를 공유해서 봄.

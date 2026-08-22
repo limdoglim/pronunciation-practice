@@ -37,9 +37,9 @@ python3 server.py
 ### AI 예문 생성
 
 `/api/chat`으로 [Ollama](https://ollama.com) 호환 API를 호출함 (기본 모델: `gemma4:31b-cloud`,
-설정에서 변경 가능). 로컬 Ollama 인스턴스로 프록시하려면 별도 리버스 프록시 설정이 필요함
-(`server.py`는 `/tts`만 처리하고 `/api/*`는 처리하지 않음 — nginx/caddy/Cloudflare Tunnel 등으로
-`/api/*` → 로컬 Ollama(`127.0.0.1:11434`)로 라우팅해야 함). 안 쓰면 "JSON 붙여넣기" 탭으로 수동 입력 가능.
+설정에서 변경 가능). 요청은 `server.py`가 로컬 Ollama(`127.0.0.1:11434`)로 중계하므로
+브라우저에 Ollama API 키를 저장하거나 외부에 노출하지 않음. 필요하면 `OLLAMA_URL`과
+`OLLAMA_API_KEY` 환경변수로 중계 대상을 바꿀 수 있음. 안 쓰면 "JSON 붙여넣기" 탭으로 수동 입력 가능.
 
 ## 기능
 

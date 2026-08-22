@@ -248,30 +248,22 @@
     <input type="text" class="wide" id="set-name" placeholder="예: Unit 3 단어">
 
     <div class="tabs">
-      <button class="tab-btn active" data-tab="manual">직접 입력</button>
-      <button class="tab-btn" data-tab="ai">AI로 생성</button>
+      <button class="tab-btn active" data-tab="input">단어 입력</button>
       <button class="tab-btn" data-tab="json">JSON 붙여넣기</button>
     </div>
 
-    <div class="tabpanel" id="tab-manual">
+    <div class="tabpanel" id="tab-input">
       <label>단어 목록 (한 줄에 한 단어)</label>
-      <textarea id="manual-words" placeholder="beautiful&#10;schedule&#10;privacy"></textarea>
+      <textarea id="words-input" placeholder="beautiful&#10;schedule&#10;privacy"></textarea>
       <div class="modal-footer" style="justify-content:flex-start; margin-top:10px;">
-        <button id="btn-manual-load">표로 불러오기</button>
+        <button id="btn-words-load">표로 불러오기</button>
+        <button class="primary" id="btn-ai-generate">✨ AI로 예문·이모지 생성</button>
       </div>
-    </div>
-
-    <div class="tabpanel" id="tab-ai" hidden>
-      <label>단어 목록 (한 줄에 한 단어)</label>
-      <textarea id="ai-words" placeholder="beautiful&#10;schedule&#10;privacy"></textarea>
       <label style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
         <span>AI 프롬프트 (수정 가능)</span>
         <button type="button" id="btn-ai-prompt-reset" style="font-size:0.75rem; padding:4px 8px;">기본값으로</button>
       </label>
       <textarea id="ai-prompt" style="min-height:110px;"></textarea>
-      <div class="modal-footer" style="justify-content:flex-start; margin-top:10px;">
-        <button class="primary" id="btn-ai-generate">✨ AI로 예문·이모지 생성</button>
-      </div>
       <div class="status-line" id="ai-status"></div>
     </div>
 
@@ -396,13 +388,10 @@
 
     <hr>
 
-    <label>Ollama API 키 (로컬 Ollama 사용 시 비워둬도 됨)</label>
-    <input type="password" class="wide" id="setting-apikey" placeholder="ollama.com/settings/keys 에서 발급">
     <label>모델</label>
     <input type="text" class="wide" id="setting-model" placeholder="gemma4:31b-cloud">
-    <p class="status-line">키는 이 브라우저의 localStorage에만 저장됩니다. 외부로 전송되지 않습니다.</p>
+    <p class="status-line">AI 요청은 서버가 Ollama로 중계합니다.</p>
     <div class="modal-footer">
-      <button class="danger" id="btn-clear-key">키 삭제</button>
       <button id="btn-close-settings">닫기</button>
       <button class="primary" id="btn-save-settings">저장</button>
     </div>
@@ -590,13 +579,12 @@
     const existing = setId ? getSetById(setId) : null;
     $("#set-name").value = existing ? existing.name : "";
     state.rows = existing ? existing.words.map(w => ({ ...w })) : [];
-    $("#manual-words").value = "";
-    $("#ai-words").value = "";
+    $("#words-input").value = "";
     $("#ai-prompt").value = loadSettings().aiPrompt || DEFAULT_AI_PROMPT;
     $("#json-input").value = "";
     $("#ai-status").textContent = "";
     $("#json-status").textContent = "";
-    switchTab("manual");
+    switchTab("input");
     renderEditorRows();
     showView("create");
   }
@@ -612,8 +600,7 @@
 
   function switchTab(name) {
     $$(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
-    $("#tab-manual").hidden = name !== "manual";
-    $("#tab-ai").hidden = name !== "ai";
+    $("#tab-input").hidden = name !== "input";
     $("#tab-json").hidden = name !== "json";
   }
   $$(".tab-btn").forEach(b => b.addEventListener("click", () => switchTab(b.dataset.tab)));
@@ -653,8 +640,8 @@
     }
   }
 
-  $("#btn-manual-load").addEventListener("click", () => {
-    const words = wordsFromTextarea($("#manual-words").value);
+  $("#btn-words-load").addEventListener("click", () => {
+    const words = wordsFromTextarea($("#words-input").value);
     words.forEach(w => upsertRow({ word: w }));
     renderEditorRows();
   });
@@ -688,7 +675,7 @@
 
   // ---- AI generation via Ollama cloud API ----
   $("#btn-ai-generate").addEventListener("click", async () => {
-    const words = wordsFromTextarea($("#ai-words").value);
+    const words = wordsFromTextarea($("#words-input").value);
     const statusEl = $("#ai-status");
     statusEl.className = "status-line";
     if (words.length === 0) {
@@ -726,7 +713,6 @@
       const promptText = $("#ai-prompt").value.trim() || DEFAULT_AI_PROMPT;
       saveSettings({ ...settings, aiPrompt: promptText });
       const headers = { "Content-Type": "application/json" };
-      if (settings.apiKey) headers["Authorization"] = "Bearer " + settings.apiKey;
       const res = await fetch("/api/chat", {
         method: "POST",
         headers,
@@ -838,10 +824,9 @@
   $("#btn-pull-words").addEventListener("click", () => {
     const words = [...new Set(state.rows.map(r => r.word.trim()).filter(Boolean))];
     const text = words.join("\n");
-    $("#manual-words").value = text;
-    $("#ai-words").value = text;
+    $("#words-input").value = text;
     const activeTab = $$(".tab-btn").find(b => b.classList.contains("active"))?.dataset.tab;
-    if (activeTab === "json") switchTab("ai");
+    if (activeTab === "json") switchTab("input");
   });
 
   $("#btn-save-set").addEventListener("click", () => {
@@ -1442,7 +1427,6 @@
   // ---------- Settings ----------
   $("#btn-settings").addEventListener("click", () => {
     const s = loadSettings();
-    $("#setting-apikey").value = s.apiKey || "";
     $("#setting-model").value = s.model || "gemma4:31b-cloud";
     $("#setting-ai-accent").value = s.aiAccent || "en-US";
     $("#setting-ai-voice-name").value = s.aiVoiceName || "Kore";
@@ -1453,18 +1437,12 @@
   $("#btn-close-settings").addEventListener("click", () => $("#modal-settings").hidden = true);
   $("#btn-save-settings").addEventListener("click", () => {
     saveSettings({
-      apiKey: $("#setting-apikey").value.trim(),
       model: $("#setting-model").value.trim() || "gemma4:31b-cloud",
       aiAccent: $("#setting-ai-accent").value,
       aiVoiceName: $("#setting-ai-voice-name").value,
       rate: parseFloat($("#setting-rate").value) || 0.92
     });
     $("#modal-settings").hidden = true;
-  });
-  $("#btn-clear-key").addEventListener("click", () => {
-    const s = loadSettings();
-    saveSettings({ ...s, apiKey: "" });
-    $("#setting-apikey").value = "";
   });
 
   // ---------- Init ----------
